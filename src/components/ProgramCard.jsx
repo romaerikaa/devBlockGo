@@ -1,0 +1,138 @@
+import React from "react";
+
+const ProgramCard = ({
+  sectionName,
+  sectionData,
+  onClick,
+  progress = 0, // default 0%
+}) => {
+  const totalStudents = sectionData.students?.length || 0;
+
+  const isDone = progress > 0;
+
+  return (
+    <div
+      onClick={onClick}
+      className="cursor-pointer rounded-3xl bg-white p-6 shadow-md transition hover:-translate-y-1 hover:shadow-xl"
+    >
+      {/* TOP */}
+      <div className="mb-3 flex items-center justify-between">
+        <span className="rounded-xl bg-blue-50 px-3 py-1 text-xs font-bold text-blue-500">
+          {sectionData.subjectCode}
+        </span>
+
+        <div className="flex items-center gap-2">
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${
+              isDone ? "bg-green-500" : "bg-red-500"
+            }`}
+          ></span>
+
+          <span
+            className={`text-xs font-bold ${
+              isDone ? "text-green-600" : "text-red-600"
+            }`}
+          >
+            {isDone ? "In Progress" : "Not Started"}
+          </span>
+        </div>
+      </div>
+
+      {/* TITLE */}
+      <h2 className="mb-3 text-lg font-extrabold text-slate-800">
+        {sectionData.subjectTitle}
+      </h2>
+
+      {/* SECTION + PROGRAM */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="font-bold text-[#003366]">{sectionName}</span>
+
+        <span className="rounded-lg bg-violet-50 px-3 py-1 text-xs text-violet-700">
+          {sectionData.sectionCourse}
+        </span>
+      </div>
+
+      {/* UNITS + SCHEDULE */}
+      <div className="mb-4 flex flex-wrap gap-2 text-xs">
+        <span className="rounded-lg bg-slate-100 px-3 py-1">
+          Units: {sectionData.units}
+        </span>
+
+        <span className="rounded-lg bg-slate-100 px-3 py-1">
+          {sectionData.schedule}
+        </span>
+
+        <span className="rounded-lg bg-slate-100 px-3 py-1">
+          {sectionData.day}
+        </span>
+      </div>
+
+      <hr className="my-3 border-slate-200" />
+
+      {/* INFO */}
+      <div className="mb-4 flex justify-between text-sm text-slate-500">
+        <span>Students: {totalStudents}</span>
+        <span>SY: 2025-2026</span>
+        <span>{sectionData.semester}</span>
+      </div>
+
+      {/* PROGRESS */}
+      <div className="mb-4">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Encoding Progress
+          </span>
+
+          <span
+            className={`text-sm font-bold ${
+              isDone ? "text-green-600" : "text-red-600"
+            }`}
+          >
+            {progress}%
+          </span>
+        </div>
+
+        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className={`h-2 rounded-full ${
+              isDone ? "bg-green-500" : "bg-red-500"
+            }`}
+            style={{ width: `${progress}%` }}
+          ></div>
+        </div>
+      </div>
+
+      {/* BUTTONS */}
+      <div className="flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation(); // prevent double click trigger
+            onClick();
+          }}
+          className={`h-12 rounded-xl font-bold text-white transition ${
+            isDone
+              ? "bg-[#003366] hover:bg-[#002244]"
+              : "bg-red-500 hover:bg-red-600"
+          }`}
+        >
+          {isDone ? "View Grades" : "Encode Now"}
+        </button>
+
+        <label className="flex h-12 cursor-pointer items-center justify-center rounded-xl bg-yellow-400 font-bold text-[#003366] transition hover:bg-yellow-500">
+          Upload Grading Sheet
+          <input type="file" className="hidden" />
+        </label>
+
+        <button
+          type="button"
+          className="h-12 rounded-xl border border-green-200 bg-green-50 font-bold text-green-700 transition hover:bg-green-500 hover:text-white"
+        >
+          Upload to Chairperson
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default ProgramCard;
