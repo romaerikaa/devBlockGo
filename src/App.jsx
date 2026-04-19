@@ -1,19 +1,22 @@
 import { useEffect, useState } from "react";
-import FacultyHeader from "./components/FacultyHeader";
-import EncodingBanner from "./components/EncodingBanner";
-import YearTabs from "./components/YearTabs";
-import SearchWithDropdown from "./components/SearchWithDropdown";
-import ProgramCard from "./components/ProgramCard";
-import GradingTable from "./components/GradingTable";
+import LoginPage from "./pages/LoginPage";
+import FacultyHeader from "./components/faculty/FacultyHeader";
+import EncodingBanner from "./components/faculty/EncodingBanner";
+import YearTabs from "./components/faculty/YearTabs";
+import SearchWithDropdown from "./components/faculty/SearchWithDropdown";
+import ProgramCard from "./components/faculty/ProgramCard";
+import GradingTable from "./components/faculty/GradingTable";
+import StudentPortal from "./pages/StudentPortal";
 
 function App() {
+  const [userRole, setUserRole] = useState(localStorage.getItem("userRole"));
   const [activeTab, setActiveTab] = useState("All Sections");
   const [selectedProgram, setSelectedProgram] = useState("");
   const [selectedSection, setSelectedSection] = useState(null);
 
   const [systemSettings] = useState({
-    semester: "1st Semester",
-    term: "finals", // change to "midterm" or "finals"
+    semester: "2nd Semester",
+    term: "midterm", // change to "finals" if needed
   });
 
   const [allGrades, setAllGrades] = useState(() => {
@@ -24,6 +27,22 @@ function App() {
   useEffect(() => {
     localStorage.setItem("blockgo-allGrades", JSON.stringify(allGrades));
   }, [allGrades]);
+
+  const handleLogin = (email) => {
+    if (email === "faculty@gmail.com") {
+      localStorage.setItem("userRole", "faculty");
+      setUserRole("faculty");
+    } else if (email === "student@gmail.com") {
+      localStorage.setItem("userRole", "student");
+      setUserRole("student");
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("userRole");
+    setUserRole(null);
+    setSelectedSection(null);
+  };
 
   const facultyData = {
     firstName: "Alice",
@@ -47,24 +66,6 @@ function App() {
       students: [
         { id: "23-0011", firstName: "Juan", lastName: "Dela Cruz" },
         { id: "23-0022", firstName: "Maria", lastName: "Santos" },
-        { id: "23-0033", firstName: "Ricardo", lastName: "Dalisay" },
-        { id: "23-0044", firstName: "Liza", lastName: "Soberano" },
-        { id: "23-0055", firstName: "Andres", lastName: "Bonifacio" },
-        { id: "23-0066", firstName: "Corazon", lastName: "Aquino" },
-        { id: "23-0077", firstName: "Emilio", lastName: "Aguinaldo" },
-        { id: "23-0088", firstName: "Pia", lastName: "Wurtzbach" },
-        { id: "23-0099", firstName: "Jose", lastName: "Rizal" },
-        { id: "23-0110", firstName: "Catriona", lastName: "Gray" },
-        { id: "23-0121", firstName: "Francisco", lastName: "Balagtas" },
-        { id: "23-0132", firstName: "Melchora", lastName: "Aquino" },
-        { id: "23-0143", firstName: "Antonio", lastName: "Luna" },
-        { id: "23-0154", firstName: "Gabriela", lastName: "Silang" },
-        { id: "23-0165", firstName: "Apolinario", lastName: "Mabini" },
-        { id: "23-0176", firstName: "Lea", lastName: "Salonga" },
-        { id: "23-0187", firstName: "Manny", lastName: "Pacquiao" },
-        { id: "23-0198", firstName: "Gloria", lastName: "Diaz" },
-        { id: "23-0209", firstName: "Benigno", lastName: "Simeon" },
-        { id: "23-0220", firstName: "Miriam", lastName: "Defensor" },
       ],
     },
     "BSIT 3-1": {
@@ -81,53 +82,54 @@ function App() {
         { id: "23-1022", firstName: "Anne", lastName: "Cruz" },
       ],
     },
-    "BSA 1-1": {
-      year: "1st Year",
-      subjectCode: "ACC 101",
-      subjectTitle: "Fundamentals of Accountancy",
-      sectionCourse: "BSA",
-      units: 3,
-      schedule: "5:00 PM - 8:00 PM",
-      day: "Wednesday",
-      semester: "2nd Semester",
-      students: [
-        { id: "23-2011", firstName: "Mark", lastName: "Lee" },
-        { id: "23-2022", firstName: "Joan", lastName: "Lim" },
-      ],
-    },
-    "BSA 4-1": {
-      year: "4th Year",
-      subjectCode: "ACC 401",
-      subjectTitle: "Advanced Auditing",
-      sectionCourse: "BSA",
-      units: 3,
-      schedule: "7:00 AM - 12:00 PM",
-      day: "Monday",
-      semester: "2nd Semester",
-      students: [
-        { id: "23-3011", firstName: "Rica", lastName: "Gomez" },
-        { id: "23-3022", firstName: "Paolo", lastName: "Tan" },
-      ],
-    },
   };
 
-  const activeGradeKey = `${systemSettings.semester}`;
+            const studentData = {
+        firstName: "Erika",
+        lastName: "Alapar",
+        middleName: "M.",
+        studentId: "2023-0001",
+        dateOfBirth: "January 01, 2005",
+        phone: "09123456789",
+        sex: "Female",
+        email: "student@gmail.com",
+        address: "Valenzuela City",
+        subjects: [
+          {
+            code: "IT 101",
+            name: "Introduction to Computing",
+            units: 3,
+            midterm: 90,
+            finals: 92,
+          },
+          {
+            code: "IT 102",
+            name: "Programming 1",
+            units: 3,
+            midterm: 88,
+            finals: 90,
+          },
+          {
+            code: "GE 101",
+            name: "Understanding the Self",
+            units: 3,
+            midterm: 91,
+            finals: 93,
+          },
+        ],
+      };
+
+  const activeGradeKey = systemSettings.semester;
 
   const getSectionProgress = (sectionName, sectionData) => {
-    const currentSectionGrades =
-      allGrades[activeGradeKey]?.[sectionName] || {};
+    const currentSectionGrades = allGrades[activeGradeKey]?.[sectionName] || {};
 
     const encodedCount = sectionData.students.filter((student) => {
-      const studentGrades = currentSectionGrades[student.id];
-      if (!studentGrades) return false;
+      const record = currentSectionGrades[student.id];
+      if (!record) return false;
 
-      if (systemSettings.term === "midterm") {
-        return !!studentGrades.midterm;
-      }
-
-      if (systemSettings.term === "finals") {
-        return !!studentGrades.finals;
-      }
+      if (systemSettings.term === "midterm") return !!record.midterm;
+      if (systemSettings.term === "finals") return !!record.finals;
 
       return false;
     }).length;
@@ -158,7 +160,6 @@ function App() {
   const now = new Date();
   const msLeft = ENCODING_END - now;
   const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
-
   const isClosed = now < ENCODING_START || now > ENCODING_END;
   const isUrgent = !isClosed && daysLeft <= 3;
 
@@ -176,9 +177,23 @@ function App() {
       year: "numeric",
     });
 
-  const handleLogout = () => {
-    alert("Logged out");
-  };
+  if (!userRole) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
+  if (userRole === "student") {
+  return (
+    <StudentPortal
+      studentData={studentData}
+      onLogout={handleLogout}
+    />
+  );
+}
+
+
+if (userRole === "student") {
+  return <StudentPortal studentData={studentData} onLogout={handleLogout} />;
+}
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -205,7 +220,7 @@ function App() {
               sections={sections}
             />
 
-            <div className="flex flex-1 max-w-xl items-center">
+            <div className="flex max-w-xl flex-1 items-center">
               <SearchWithDropdown
                 selectedProgram={selectedProgram}
                 setSelectedProgram={setSelectedProgram}

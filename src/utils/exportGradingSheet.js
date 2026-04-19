@@ -27,97 +27,102 @@ export const exportGradingSheet = (
     return "No Name";
   };
 
-  const totalStudents = selectedSection.students.length;
-
-  let passed = 0;
-  let failed = 0;
-
-  const getPLVGrade = (grade) => {
-    if (grade === "INC") return "INC";
-    if (grade === "UD") return "UD";
-    if (grade === "D") return "D";
-    if (grade === "W") return "W";
-
+  const getGradeEquivalent = (grade) => {
     const g = Number(grade);
 
     if (isNaN(g)) return "-";
-    if (g >= 97 && g <= 100) return "1.00";
-    if (g >= 94 && g <= 96.99) return "1.25";
-    if (g >= 91 && g <= 93.99) return "1.50";
-    if (g >= 88 && g <= 90.99) return "1.75";
-    if (g >= 85 && g <= 87.99) return "2.00";
-    if (g >= 82 && g <= 84.99) return "2.25";
-    if (g >= 79 && g <= 81.99) return "2.50";
-    if (g >= 76 && g <= 78.99) return "2.75";
+    if (g >= 97) return "1.00";
+    if (g >= 94) return "1.25";
+    if (g >= 91) return "1.50";
+    if (g >= 88) return "1.75";
+    if (g >= 85) return "2.00";
+    if (g >= 82) return "2.25";
+    if (g >= 79) return "2.50";
+    if (g >= 76) return "2.75";
     if (g === 75) return "3.00";
     if (g < 75) return "5.00";
 
     return "-";
   };
 
-  const tableRows = selectedSection.students.map((student, index) => {
-    const midRaw = grades[student.id]?.midterm;
-    const finRaw = grades[student.id]?.finals;
-    
-    const displayName = grades[student.id]?.flagged
-  ? ` ${formatName(student)}`
-  : formatName(student);
-    let displayGrade = "-";
-    let plvGrade = "-";
-    let status = "Incomplete";
+  const getStandingCode = (standing) => {
+    if (standing === "dropped") return "D";
+    if (standing === "unofficially_dropped") return "UD";
+    if (standing === "withdrawn") return "W";
+    if (standing === "incomplete") return "INC";
+    return null;
+  };
+
+  const computeFinal = (studentId) => {
+    const studentRecord = grades[studentId] || {};
+    const standingCode = getStandingCode(studentRecord.standing);
+
+    if (standingCode) return standingCode;
+
+    const mid = studentRecord.midterm;
+    const fin = studentRecord.finals;
+
+    if (["INC", "UD", "D", "W"].includes(mid)) return mid;
+    if (["INC", "UD", "D", "W"].includes(fin)) return fin;
+
+    const midterm = Number(mid);
+    const finals = Number(fin);
 
     if (systemTerm === "midterm") {
-      if (["INC", "UD", "D", "W"].includes(midRaw)) {
-        displayGrade = midRaw;
-        plvGrade = midRaw;
-        status = midRaw;
-      } else {
-        const midterm = Number(midRaw);
-
-        if (midterm > 0) {
-          displayGrade = midterm.toFixed(2);
-          plvGrade = getPLVGrade(midterm);
-          status = midterm >= 75 ? "Passed" : "Failed";
-
-          if (status === "Passed") passed++;
-          else failed++;
-        }
-      }
+      if (!midterm) return "-";
+      return midterm.toFixed(2);
     }
 
     if (systemTerm === "finals") {
-      if (["INC", "UD", "D", "W"].includes(midRaw)) {
-        displayGrade = midRaw;
-        plvGrade = midRaw;
-        status = midRaw;
-      } else if (["INC", "UD", "D", "W"].includes(finRaw)) {
-        displayGrade = finRaw;
-        plvGrade = finRaw;
-        status = finRaw;
-      } else {
-        const midterm = Number(midRaw);
-        const finals = Number(finRaw);
-
-        if (midterm > 0 && finals > 0) {
-          const finalNumeric = (midterm + finals) / 2;
-          displayGrade = finalNumeric.toFixed(2);
-          plvGrade = getPLVGrade(finalNumeric);
-          status = finalNumeric >= 75 ? "Passed" : "Failed";
-
-          if (status === "Passed") passed++;
-          else failed++;
-        }
-      }
+      if (!midterm || !finals) return "-";
+      return ((midterm + finals) / 2).toFixed(2);
     }
 
+    return "-";
+  };
+
+  const getStatus = (final) => {
+    if (final === "D") return "Dropped";
+    if (final === "UD") return "Unofficially Dropped";
+    if (final === "W") return "Withdrawn";
+    if (final === "INC") return "Incomplete";
+
+    if (systemTerm === "midterm") {
+      if (final === "-") return "Pending";
+      return Number(final) >= 75 ? "Passed" : "Failed";
+    }
+
+    if (final === "-") return "Incomplete";
+    return Number(final) >= 75 ? "Passed" : "Failed";
+  };
+
+  const totalStudents = selectedSection.students.length;
+  let passed = 0;
+  let failed = 0;
+
+  const tableRows = selectedSection.students.map((student, index) => {
+    const final = computeFinal(student.id);
+    const status = getStatus(final);
+    const isFlagged = grades[student.id]?.flagged;
+
+    if (status === "Passed") passed++;
+    if (status === "Failed") failed++;
+
+    const displayName = isFlagged
+      ? `[FLAGGED] ${formatName(student)}`
+      : formatName(student);
+
+    const gradeEquivalent =
+      final !== "-" && !isNaN(final) ? getGradeEquivalent(final) : final;
+
     return [
-  index + 1,
-  student.id,
-  displayName,
-  displayGrade,
-  plvGrade,
-  status,
-];
+      index + 1,
+      student.id,
+      displayName,
+      final,
+      gradeEquivalent,
+      status,
+    ];
   });
 
   const graded = passed + failed;
@@ -152,7 +157,7 @@ export const exportGradingSheet = (
       "Student ID",
       "Student Name",
       "Grade\n(60-100)",
-      "PLV Grade",
+      "Grade Equivalent",
       "Status",
     ]],
     body: tableRows,
@@ -169,29 +174,37 @@ export const exportGradingSheet = (
     },
     columnStyles: {
       0: { halign: "center", cellWidth: 12 },
-      1: { halign: "center", cellWidth: 28 },
-      2: { cellWidth: 55 },
-      3: { halign: "center", cellWidth: 25 },
-      4: { halign: "center", cellWidth: 25 },
-      5: { halign: "center", cellWidth: 25 },
+      1: { halign: "center", cellWidth: 24 },
+      2: { cellWidth: 54 },
+      3: { halign: "center", cellWidth: 24 },
+      4: { halign: "center", cellWidth: 26 },
+      5: { halign: "center", cellWidth: 34 },
     },
     didParseCell: (data) => {
-  const student = selectedSection.students[data.row.index];
+      const student = selectedSection.students[data.row.index];
 
-  if (data.section === "body" && grades[student?.id]?.flagged) {
-    data.cell.styles.fillColor = [255, 235, 238];
-  }
+      if (data.section === "body" && grades[student?.id]?.flagged) {
+        data.cell.styles.fillColor = [255, 235, 238];
+      }
 
-  if (data.section === "body" && data.column.index === 5) {
-    if (data.cell.raw === "Passed") {
-      data.cell.styles.textColor = [34, 139, 34];
-      data.cell.styles.fontStyle = "bold";
-    } else if (data.cell.raw === "Failed") {
-      data.cell.styles.textColor = [220, 53, 69];
-      data.cell.styles.fontStyle = "bold";
-    }
-  }
-},
+      if (data.section === "body" && data.column.index === 5) {
+        if (data.cell.raw === "Passed") {
+          data.cell.styles.textColor = [34, 139, 34];
+          data.cell.styles.fontStyle = "bold";
+        } else if (data.cell.raw === "Failed") {
+          data.cell.styles.textColor = [220, 53, 69];
+          data.cell.styles.fontStyle = "bold";
+        } else if (
+          data.cell.raw === "Dropped" ||
+          data.cell.raw === "Unofficially Dropped" ||
+          data.cell.raw === "Withdrawn" ||
+          data.cell.raw === "Incomplete"
+        ) {
+          data.cell.styles.textColor = [180, 120, 0];
+          data.cell.styles.fontStyle = "bold";
+        }
+      }
+    },
   });
 
   doc.save(`${selectedSection.sectionName}_${systemTerm}_grading_sheet.pdf`);

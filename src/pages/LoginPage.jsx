@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import plvbg from "../plvbg.png";
-import plvlogo from "../plvlogo.png";
+import plvbg from "../assets/plvbg.png";
+import plvlogo from "../assets/plvlogo.png";
 
 const LoginPage = ({ onLogin }) => {
   const [email, setEmail] = useState("");
@@ -9,58 +9,48 @@ const LoginPage = ({ onLogin }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!email.includes("faculty") && !email.includes("student")) {
-      alert("Unauthorized email address.");
+    if (email === "faculty@gmail.com" || email === "student@gmail.com") {
+      onLogin(email);
       return;
     }
 
-    onLogin(email);
+    alert("Unauthorized email address.");
   };
 
   return (
     <div className="flex h-screen">
-
-      {/* LEFT IMAGE */}
       <div
-        className="hidden md:block md:w-1/2 bg-cover bg-center"
+        className="hidden bg-cover bg-center md:block md:w-1/2"
         style={{ backgroundImage: `url(${plvbg})` }}
       />
 
-      {/* RIGHT FORM */}
-      <div className="flex items-center justify-center w-full md:w-1/2 bg-white">
+      <div className="flex w-full items-center justify-center bg-white md:w-1/2">
         <div className="w-full max-w-sm px-6">
-
-          {/* LOGO */}
           <img
             src={plvlogo}
             alt="PLV Logo"
-            className="w-24 mb-3 ml-auto"
+            className="mx-auto mb-4 w-24"
           />
 
-          {/* TITLE */}
-          <h2 className="text-2xl font-semibold text-[#003366] mb-6 text-center">
+          <h2 className="mb-6 text-center text-2xl font-semibold text-[#003366]">
             Welcome
           </h2>
 
-          {/* FORM */}
           <form onSubmit={handleSubmit} className="space-y-4">
-
             <div>
-              <label className="block text-sm mb-1 text-gray-700">
-                Email
-              </label>
+              <label className="mb-1 block text-sm text-gray-700">Email</label>
               <input
                 type="email"
                 placeholder="faculty@gmail.com / student@gmail.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900"
+                className="w-full rounded-lg border p-3 focus:outline-none focus:ring-2 focus:ring-blue-900"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm mb-1 text-gray-700">
+              <label className="mb-1 block text-sm text-gray-700">
                 Password
               </label>
               <input
@@ -68,20 +58,20 @@ const LoginPage = ({ onLogin }) => {
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900"
+                className="w-full rounded-lg border p-3 focus:outline-none focus:ring-2 focus:ring-blue-900"
                 required
               />
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 bg-[#003366] text-white rounded-lg font-bold hover:bg-[#002244] transition"
+              className="w-full rounded-lg bg-[#003366] py-3 font-bold text-white transition hover:bg-[#002244]"
             >
               Sign In
             </button>
           </form>
 
-          <p className="text-sm text-gray-500 mt-4 text-center">
+          <p className="mt-4 text-center text-sm text-gray-500">
             Forgot Password?
           </p>
         </div>

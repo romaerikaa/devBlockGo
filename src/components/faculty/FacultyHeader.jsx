@@ -1,9 +1,12 @@
 import React from "react";
-import plvlogo from "../plvlogo.png";
+import plvlogo from "../../assets/plvlogo.png";
+
 
 const FacultyHeader = ({ facultyData, totalSections, onLogout }) => {
   return (
     <div className="w-screen">
+
+      
 
       {/* 🔵 TOP NAV BAR */}
       <div className="bg-[#003366] px-6 py-3 flex items-center justify-between">
