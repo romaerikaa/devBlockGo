@@ -10,7 +10,7 @@ function App() {
     const saved = localStorage.getItem("blockgo-allGrades");
     return saved ? JSON.parse(saved) : {};
   });
-
+  
   useEffect(() => {
     localStorage.setItem("blockgo-allGrades", JSON.stringify(allGrades));
   }, [allGrades]);
@@ -31,10 +31,10 @@ function App() {
   };
 
   const studentData = {
-    firstName: "Erika",
+    firstName: "Roma",
     lastName: "Alapar",
     middleName: "M.",
-    studentId: "2023-0001",
+    studentId: "23-0001",
     dateOfBirth: "January 01, 2005",
     phone: "09123456789",
     sex: "Female",

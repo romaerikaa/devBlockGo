@@ -1,12 +1,9 @@
 import React from "react";
 import plvlogo from "../../assets/plvlogo.png";
 
-
 const FacultyHeader = ({ facultyData, totalSections, onLogout }) => {
   return (
-    <div className="w-screen">
-
-      
+    <div className="w-full">
 
       {/* 🔵 TOP NAV BAR */}
       <div className="bg-[#003366] px-6 py-3 flex items-center justify-between">
@@ -33,36 +30,33 @@ const FacultyHeader = ({ facultyData, totalSections, onLogout }) => {
       </div>
 
       {/* 🟦 MAIN HEADER CARD */}
-      <div className="bg-[#003366] text-white rounded-xl p-6 flex justify-between items-center mt-5 mx-6">
+      <div className="mt-5 px-4 md:px-6">
+        <div className="rounded-xl bg-[#003366] p-4 md:p-6 text-white flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
-        {/* LEFT INFO */}
-        <div>
-          <h1 className="text-4xl font-bold">
-            {facultyData.firstName} {facultyData.lastName}
-          </h1>
+          {/* LEFT INFO */}
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold leading-tight">
+              {facultyData.firstName} {facultyData.lastName}
+            </h1>
 
-          <p className="text-sm opacity-80">
-            {facultyData.facultyId}
-          </p>
-
-          <p className="text-sm opacity-80">
-            {facultyData.department}
-          </p>
-        </div>
-
-        {/* RIGHT STATS */}
-        <div className="flex gap-4">
-
-          <div className="bg-white/20 px-5 py-3 rounded-lg text-center">
-            <span className="text-xs block">Sections</span>
-            <div className="text-lg font-bold">{totalSections}</div>
+            <p className="text-sm opacity-80">{facultyData.facultyId}</p>
+            <p className="text-sm opacity-80">{facultyData.department}</p>
           </div>
 
-          <div className="bg-yellow-400 text-[#003366] px-5 py-3 rounded-lg text-center font-bold">
-            <span className="text-xs block">Classification</span>
-            <div className="text-lg">{facultyData.Classification}</div>
-          </div>
+          {/* RIGHT STATS */}
+          <div className="flex flex-wrap gap-3 md:gap-4">
 
+            <div className="min-w-[110px] bg-white/20 px-4 py-3 rounded-lg text-center">
+              <span className="text-xs block">Sections</span>
+              <div className="text-lg font-bold">{totalSections}</div>
+            </div>
+
+            <div className="min-w-[140px] bg-yellow-400 text-[#003366] px-4 py-3 rounded-lg text-center font-bold">
+              <span className="text-xs block">Classification</span>
+              <div className="text-lg">{facultyData.Classification}</div>
+            </div>
+
+          </div>
         </div>
       </div>
 

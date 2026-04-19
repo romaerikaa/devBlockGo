@@ -13,7 +13,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
 
   const [systemSettings] = useState({
     semester: "2nd Semester",
-    term: "midterm",
+    term: "finals",
   });
 
   const facultyData = {
@@ -38,6 +38,16 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
       students: [
         { id: "23-0011", firstName: "Juan", lastName: "Dela Cruz" },
         { id: "23-0022", firstName: "Maria", lastName: "Santos" },
+        { id: "23-0033", firstName: "Ricardo", lastName: "Dalisay" },
+        { id: "23-0044", firstName: "Liza", lastName: "Soberano" },
+        { id: "23-0055", firstName: "Andres", lastName: "Bonifacio" },
+        { id: "23-0066", firstName: "Corazon", lastName: "Aquino" },
+        { id: "23-0077", firstName: "Emilio", lastName: "Aguinaldo" },
+        { id: "23-0088", firstName: "Pia", lastName: "Wurtzbach" },
+        { id: "23-0099", firstName: "Jose", lastName: "Rizal" },
+        { id: "23-0110", firstName: "Catriona", lastName: "Gray" },
+        { id: "23-0121", firstName: "Francisco", lastName: "Balagtas" },
+        { id: "23-0132", firstName: "Melchora", lastName: "Aquino" }
       ],
     },
     "BSIT 3-1": {
@@ -136,6 +146,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
         totalSections={Object.keys(sections).length}
         onLogout={onLogout}
       />
+      
 
       <EncodingBanner
         bannerState={getBannerState()}
@@ -147,7 +158,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
 
       {!selectedSection ? (
         <>
-          <div className="mt-6 flex items-center gap-4 px-6">
+          <div className="mt-6 flex flex-col gap-4 px-4 md:flex-row md:items-center">
             <YearTabs
               activeTab={activeTab}
               setActiveTab={setActiveTab}
@@ -162,7 +173,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 px-6 pb-8 pt-6 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 px-4 pb-8 pt-6 sm:grid-cols-2 lg:grid-cols-3">
             {filteredSections.map(([sectionName, sectionData]) => (
               <ProgramCard
                 key={sectionName}
@@ -187,8 +198,10 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
           }
           setAllGrades={setAllGrades}
         />
+        
       )}
     </div>
+    
   );
 };
 

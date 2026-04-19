@@ -1,12 +1,12 @@
 const StudentSummary = ({ totalUnits, gwa, isDeansLister }) => {
   return (
-    <div className="mx-6 mt-5 flex flex-col items-start justify-between gap-4 rounded-xl bg-[#003366] p-6 text-white md:flex-row md:items-center">
+    <div className="mx-4 mt-5 flex flex-col gap-4 rounded-xl bg-[#003366] p-4 text-white md:mx-6 md:flex-row md:items-center md:justify-between md:p-6">
       <div>
-        <h2 className="text-lg font-bold">School Year: 2025-2026</h2>
+        <h2 className="text-base font-bold md:text-lg">School Year: 2025-2026</h2>
         <p className="text-sm opacity-80">1st Semester Grades</p>
       </div>
 
-      <div className="flex flex-wrap gap-4">
+      <div className="flex flex-wrap gap-3 md:gap-4">
         {isDeansLister && (
           <div className="rounded-lg bg-green-600 px-4 py-2 font-bold">
             Dean&apos;s Lister
