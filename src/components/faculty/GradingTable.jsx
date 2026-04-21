@@ -239,7 +239,7 @@ const GradingTable = ({
                   </div>
 
                   <div>
-                    <p className="mb-1 text-sm text-slate-500">Standing</p>
+                    <p className="mb-1 text-sm text-slate-500">Enrollment Status</p>
                     <select
                       value={standing}
                       onChange={(e) =>
@@ -286,10 +286,10 @@ const GradingTable = ({
                   Status
                 </th>
                 <th className="px-6 py-4 text-center text-[15px] font-bold uppercase tracking-wide">
-                  Standing
+                  Enrollment Status
                 </th>
                 <th className="px-6 py-4 text-center text-[15px] font-bold uppercase tracking-wide">
-                  Flag
+                  Remarks
                 </th>
               </tr>
             </thead>
