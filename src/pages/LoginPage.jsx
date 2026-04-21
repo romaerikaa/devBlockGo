@@ -12,6 +12,7 @@ const LoginPage = ({ onLogin }) => {
   if (
     email !== "faculty@gmail.com" &&
     email !== "student@gmail.com" &&
+    email !== "chairperson@gmail.com" &&
     email !== "registrar@gmail.com"
   ) {
     alert("Unauthorized email address.");

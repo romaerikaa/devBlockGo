@@ -1,0 +1,130 @@
+export const CHAIRPERSON_REVIEW_KEY = "chairpersonSectionReviews";
+
+export const normalizeText = (value = "") =>
+  String(value).trim().toLowerCase();
+
+export const buildFacultyDirectory = ({ facultyList = [], assignments = [] }) => {
+  const map = new Map();
+
+  facultyList.forEach((faculty) => {
+    map.set(Number(faculty.id), {
+      facultyId: Number(faculty.id),
+      facultyName: faculty.name,
+      department: faculty.program,
+      sections: [],
+    });
+  });
+
+  assignments.forEach((assignment) => {
+    const facultyId = Number(assignment.facultyId);
+
+    if (!map.has(facultyId)) {
+      map.set(facultyId, {
+        facultyId,
+        facultyName: assignment.facultyName || `Faculty ${facultyId}`,
+        department: assignment.program,
+        sections: [],
+      });
+    }
+
+    const facultyEntry = map.get(facultyId);
+    facultyEntry.sections.push(assignment);
+  });
+
+  return Array.from(map.values());
+};
+
+export const getSectionStudents = ({ students = [], assignment }) => {
+  if (!assignment) return [];
+
+  return students.filter((student) => {
+    const sameProgram = normalizeText(student.program) === normalizeText(assignment.program);
+    const sameSchoolYear = normalizeText(student.schoolYear) === normalizeText(assignment.schoolYear);
+    const sameSemester = normalizeText(student.semester) === normalizeText(assignment.semester);
+
+    const sectionOptions = [
+      assignment.sectionName,
+      `${assignment.program} ${assignment.sectionName}`,
+    ].map(normalizeText);
+
+    const sameSection = sectionOptions.includes(normalizeText(student.section));
+
+    return sameProgram && sameSchoolYear && sameSemester && sameSection;
+  });
+};
+
+export const getSectionReviewRecord = ({ reviewData = {}, reviewKey }) =>
+  reviewData[reviewKey] || {
+    status: "pending",
+    note: "",
+    lastUpdated: null,
+  };
+
+export const getReviewStatusLabel = (status = "pending") => {
+  if (status === "returned") return "Returned to Faculty";
+  if (status === "approved") return "Approved by Chairperson";
+  if (status === "submitted") return "Submitted to Registrar";
+  return "Pending Review";
+};
+
+export const getReviewStatusClasses = (status = "pending") => {
+  if (status === "returned") {
+    return "bg-red-100 text-red-700 border border-red-200";
+  }
+
+  if (status === "approved") {
+    return "bg-emerald-100 text-emerald-700 border border-emerald-200";
+  }
+
+  if (status === "submitted") {
+    return "bg-blue-100 text-blue-700 border border-blue-200";
+  }
+
+  return "bg-amber-100 text-amber-700 border border-amber-200";
+};
+
+export const getEncodedCount = ({ grades = {}, students = [], activeTerm = "finals" }) =>
+  students.filter((student) => {
+    const record = grades[student.studentId] || grades[student.id] || {};
+    return activeTerm === "midterm" ? !!record.midterm : !!record.finals;
+  }).length;
+
+export const getFacultyStatus = ({ encodedSections = 0, totalSections = 0 }) => {
+  if (totalSections === 0) return "No Assigned Sections";
+  if (encodedSections === 0) return "Not Started";
+  if (encodedSections >= totalSections) return "Completed";
+  return "In Progress";
+};
+
+export const getFacultyStatusClasses = (status) => {
+  if (status === "Completed") return "bg-emerald-100 text-emerald-700";
+  if (status === "In Progress") return "bg-yellow-100 text-yellow-700";
+  if (status === "No Assigned Sections") return "bg-slate-100 text-slate-600";
+  return "bg-red-100 text-red-700";
+};
+
+export const buildReviewKey = (assignment) =>
+  [
+    Number(assignment.facultyId),
+    assignment.sectionName,
+    assignment.schoolYear,
+    assignment.semester,
+  ].join("__");
+
+export const computeGradeStatus = (record = {}, activeTerm = "finals") => {
+  if (["dropped", "unofficially_dropped", "withdrawn", "incomplete"].includes(record.standing)) {
+    return record.standing;
+  }
+
+  const midterm = Number(record.midterm);
+  const finals = Number(record.finals);
+
+  if (activeTerm === "midterm") {
+    if (!midterm) return "pending";
+    return midterm >= 75 ? "passed" : "failed";
+  }
+
+  if (!midterm || !finals) return "pending";
+
+  return (midterm + finals) / 2 >= 75 ? "passed" : "failed";
+};

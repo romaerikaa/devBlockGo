@@ -3,6 +3,7 @@ import LoginPage from "./pages/LoginPage";
 import StudentPortal from "./pages/StudentPortal";
 import FacultyPortal from "./pages/FacultyPortal";
 import RegistrarPortal from "./pages/RegistrarPortal";
+import ChairpersonPortal from "./pages/ChairpersonPortal";
 
 function App() {
   const [userRole, setUserRole] = useState(localStorage.getItem("userRole"));
@@ -26,6 +27,9 @@ function App() {
     } else if (email === "registrar@gmail.com") {
       localStorage.setItem("userRole", "registrar");
       setUserRole("registrar");
+    } else if (email === "chairperson@gmail.com") {
+      localStorage.setItem("userRole", "chairperson");
+      setUserRole("chairperson");
     }
   };
 
@@ -52,20 +56,6 @@ function App() {
         midterm: 90,
         finals: 92,
       },
-      {
-        code: "IT 102",
-        name: "Programming 1",
-        units: 3,
-        midterm: 88,
-        finals: 90,
-      },
-      {
-        code: "GE 101",
-        name: "Understanding the Self",
-        units: 3,
-        midterm: 91,
-        finals: 93,
-      },
     ],
   };
 
@@ -89,6 +79,15 @@ function App() {
 
   if (userRole === "registrar") {
     return <RegistrarPortal onLogout={handleLogout} />;
+  }
+
+  if (userRole === "chairperson") {
+    return (
+      <ChairpersonPortal
+        onLogout={handleLogout}
+        allGrades={allGrades}
+      />
+    );
   }
 
   return <LoginPage onLogin={handleLogin} />;

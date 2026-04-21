@@ -5,6 +5,7 @@ import YearTabs from "../components/faculty/YearTabs";
 import SearchWithDropdown from "../components/faculty/SearchWithDropdown";
 import ProgramCard from "../components/faculty/ProgramCard";
 import GradingTable from "../components/faculty/GradingTable";
+import { CHAIRPERSON_REVIEW_KEY } from "../utils/chairpersonHelpers";
 
 const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
   const [activeTab, setActiveTab] = useState("All Sections");
@@ -64,27 +65,17 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
         { id: "23-1022", firstName: "Anne", lastName: "Cruz" },
       ],
     },
-    "BSA 1-1": {
-      year: "1st Year",
-      subjectCode: "ACC 101",
-      subjectTitle: "Fundamentals of Accountancy",
-      sectionCourse: "BSA",
-      units: 3,
-      schedule: "5:00 PM - 8:00 PM",
-      day: "Wednesday",
-      semester: "2nd Semester",
-      students: [
-        { id: "23-2011", firstName: "Mark", lastName: "Lee" },
-        { id: "23-2022", firstName: "Joan", lastName: "Lim" },
-      ],
-    },
   };
+
+  const reviewData = useMemo(() => {
+    const saved = localStorage.getItem(CHAIRPERSON_REVIEW_KEY);
+    return saved ? JSON.parse(saved) : {};
+  }, []);
 
   const activeGradeKey = systemSettings.semester;
 
   const getSectionProgress = (sectionName, sectionData) => {
-    const currentSectionGrades =
-      allGrades?.[activeGradeKey]?.[sectionName] || {};
+    const currentSectionGrades = allGrades?.[activeGradeKey]?.[sectionName] || {};
 
     const encodedCount = sectionData.students.filter((student) => {
       const record = currentSectionGrades[student.id];
@@ -99,22 +90,21 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
     return Math.round((encodedCount / sectionData.students.length) * 100);
   };
 
-  const filteredSections = Object.entries(sections).filter(
-    ([sectionName, sectionData]) => {
-      const matchesYear =
-        activeTab === "All Sections" || sectionData.year === activeTab;
+  const getReviewKey = (sectionName) =>
+    [1, sectionName, "2025-2026", systemSettings.semester].join("__");
 
-      const searchValue = selectedProgram.toLowerCase();
+  const filteredSections = Object.entries(sections).filter(([sectionName, sectionData]) => {
+    const matchesYear = activeTab === "All Sections" || sectionData.year === activeTab;
+    const searchValue = selectedProgram.toLowerCase();
 
-      const matchesSearch =
-        selectedProgram === "" ||
-        sectionName.toLowerCase().includes(searchValue) ||
-        sectionData.subjectTitle.toLowerCase().includes(searchValue) ||
-        sectionData.sectionCourse.toLowerCase().includes(searchValue);
+    const matchesSearch =
+      selectedProgram === "" ||
+      sectionName.toLowerCase().includes(searchValue) ||
+      sectionData.subjectTitle.toLowerCase().includes(searchValue) ||
+      sectionData.sectionCourse.toLowerCase().includes(searchValue);
 
-      return matchesYear && matchesSearch;
-    }
-  );
+    return matchesYear && matchesSearch;
+  });
 
   const encodingData = useMemo(() => {
     const saved = localStorage.getItem("encodingPeriod");
@@ -177,11 +167,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
       {!selectedSection ? (
         <>
           <div className="mt-6 flex flex-col gap-4 px-4 md:flex-row md:items-center">
-            <YearTabs
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              sections={sections}
-            />
+            <YearTabs activeTab={activeTab} setActiveTab={setActiveTab} sections={sections} />
 
             <div className="flex max-w-xl flex-1 items-center">
               <SearchWithDropdown
@@ -192,17 +178,24 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
           </div>
 
           <div className="grid grid-cols-1 gap-6 px-4 pb-8 pt-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredSections.map(([sectionName, sectionData]) => (
-              <ProgramCard
-                key={sectionName}
-                sectionName={sectionName}
-                sectionData={sectionData}
-                progress={getSectionProgress(sectionName, sectionData)}
-                onClick={() =>
-                  setSelectedSection({ sectionName, ...sectionData })
-                }
-              />
-            ))}
+            {filteredSections.map(([sectionName, sectionData]) => {
+              const reviewRecord = reviewData[getReviewKey(sectionName)] || {
+                status: "pending",
+                note: "",
+              };
+
+              return (
+                <ProgramCard
+                  key={sectionName}
+                  sectionName={sectionName}
+                  sectionData={sectionData}
+                  progress={getSectionProgress(sectionName, sectionData)}
+                  reviewStatus={reviewRecord.status}
+                  reviewNote={reviewRecord.note}
+                  onClick={() => setSelectedSection({ sectionName, ...sectionData })}
+                />
+              );
+            })}
           </div>
         </>
       ) : (
@@ -211,9 +204,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
           onBack={() => setSelectedSection(null)}
           systemTerm={systemSettings.term}
           activeGradeKey={activeGradeKey}
-          grades={
-            allGrades?.[activeGradeKey]?.[selectedSection.sectionName] || {}
-          }
+          grades={allGrades?.[activeGradeKey]?.[selectedSection.sectionName] || {}}
           setAllGrades={setAllGrades}
         />
       )}
