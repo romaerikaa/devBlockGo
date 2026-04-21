@@ -7,15 +7,19 @@ const LoginPage = ({ onLogin }) => {
   const [password, setPassword] = useState("");
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (email === "faculty@gmail.com" || email === "student@gmail.com") {
-      onLogin(email);
-      return;
-    }
-
+  if (
+    email !== "faculty@gmail.com" &&
+    email !== "student@gmail.com" &&
+    email !== "registrar@gmail.com"
+  ) {
     alert("Unauthorized email address.");
-  };
+    return;
+  }
+
+  onLogin(email);
+};
 
   return (
     <div className="flex h-screen">

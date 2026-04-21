@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import LoginPage from "./pages/LoginPage";
 import StudentPortal from "./pages/StudentPortal";
 import FacultyPortal from "./pages/FacultyPortal";
+import RegistrarPortal from "./pages/RegistrarPortal";
 
 function App() {
   const [userRole, setUserRole] = useState(localStorage.getItem("userRole"));
@@ -10,7 +11,7 @@ function App() {
     const saved = localStorage.getItem("blockgo-allGrades");
     return saved ? JSON.parse(saved) : {};
   });
-  
+
   useEffect(() => {
     localStorage.setItem("blockgo-allGrades", JSON.stringify(allGrades));
   }, [allGrades]);
@@ -22,6 +23,9 @@ function App() {
     } else if (email === "student@gmail.com") {
       localStorage.setItem("userRole", "student");
       setUserRole("student");
+    } else if (email === "registrar@gmail.com") {
+      localStorage.setItem("userRole", "registrar");
+      setUserRole("registrar");
     }
   };
 
@@ -81,6 +85,10 @@ function App() {
         setAllGrades={setAllGrades}
       />
     );
+  }
+
+  if (userRole === "registrar") {
+    return <RegistrarPortal onLogout={handleLogout} />;
   }
 
   return <LoginPage onLogin={handleLogin} />;

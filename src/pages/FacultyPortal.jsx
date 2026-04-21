@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import FacultyHeader from "../components/faculty/FacultyHeader";
 import EncodingBanner from "../components/faculty/EncodingBanner";
 import YearTabs from "../components/faculty/YearTabs";
@@ -47,7 +47,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
         { id: "23-0099", firstName: "Jose", lastName: "Rizal" },
         { id: "23-0110", firstName: "Catriona", lastName: "Gray" },
         { id: "23-0121", firstName: "Francisco", lastName: "Balagtas" },
-        { id: "23-0132", firstName: "Melchora", lastName: "Aquino" }
+        { id: "23-0132", firstName: "Melchora", lastName: "Aquino" },
       ],
     },
     "BSIT 3-1": {
@@ -116,28 +116,47 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
     }
   );
 
-  const ENCODING_START = new Date("2026-04-20T00:00:00");
-  const ENCODING_END = new Date("2026-04-21T23:59:59");
+  const encodingData = useMemo(() => {
+    const saved = localStorage.getItem("encodingPeriod");
+    return saved ? JSON.parse(saved) : null;
+  }, []);
+
+  const ENCODING_START = encodingData?.startDate
+    ? new Date(`${encodingData.startDate}T00:00:00`)
+    : null;
+
+  const ENCODING_END = encodingData?.endDate
+    ? new Date(`${encodingData.endDate}T23:59:59`)
+    : null;
 
   const now = new Date();
-  const msLeft = ENCODING_END - now;
-  const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
-  const isClosed = now < ENCODING_START || now > ENCODING_END;
-  const isUrgent = !isClosed && daysLeft <= 3;
 
   const getBannerState = () => {
+    if (!ENCODING_START || !ENCODING_END) return "closed_before";
     if (now > ENCODING_END) return "closed_after";
     if (now < ENCODING_START) return "closed_before";
-    if (isUrgent) return "urgent";
+
+    const msLeft = ENCODING_END - now;
+    const computedDaysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+
+    if (computedDaysLeft <= 3) return "urgent";
     return "open";
   };
 
-  const formatDate = (date) =>
-    date.toLocaleDateString("en-US", {
+  const daysLeft =
+    ENCODING_END && now <= ENCODING_END
+      ? Math.ceil((ENCODING_END - now) / (1000 * 60 * 60 * 24))
+      : 0;
+
+  const formatDate = (date) => {
+    if (!date) return "No schedule set";
+
+    return new Date(date).toLocaleDateString("en-US", {
       month: "long",
       day: "2-digit",
       year: "numeric",
     });
+  };
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -146,7 +165,6 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
         totalSections={Object.keys(sections).length}
         onLogout={onLogout}
       />
-      
 
       <EncodingBanner
         bannerState={getBannerState()}
@@ -198,10 +216,8 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
           }
           setAllGrades={setAllGrades}
         />
-        
       )}
     </div>
-    
   );
 };
 
