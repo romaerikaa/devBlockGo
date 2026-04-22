@@ -26,56 +26,72 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
     Classification: "Full-Time",
   };
 
-  const sections = {
-    "BSIT 2-1": {
-      year: "2nd Year",
-      subjectCode: "GE 101",
-      subjectTitle: "Understanding the Self",
-      sectionCourse: "BSIT",
-      units: 3,
-      schedule: "3:00 PM - 5:00 PM",
-      day: "Friday",
-      semester: "2nd Semester",
-      students: [
-        { id: "23-0011", firstName: "Juan", lastName: "Dela Cruz" },
-        { id: "23-0022", firstName: "Maria", lastName: "Santos" },
-        { id: "23-0033", firstName: "Ricardo", lastName: "Dalisay" },
-        { id: "23-0044", firstName: "Liza", lastName: "Soberano" },
-        { id: "23-0055", firstName: "Andres", lastName: "Bonifacio" },
-        { id: "23-0066", firstName: "Corazon", lastName: "Aquino" },
-        { id: "23-0077", firstName: "Emilio", lastName: "Aguinaldo" },
-        { id: "23-0088", firstName: "Pia", lastName: "Wurtzbach" },
-        { id: "23-0099", firstName: "Jose", lastName: "Rizal" },
-        { id: "23-0110", firstName: "Catriona", lastName: "Gray" },
-        { id: "23-0121", firstName: "Francisco", lastName: "Balagtas" },
-        { id: "23-0132", firstName: "Melchora", lastName: "Aquino" },
-      ],
-    },
-    "BSIT 3-1": {
-      year: "3rd Year",
-      subjectCode: "IT 23",
-      subjectTitle: "Web Development",
-      sectionCourse: "BSIT",
-      units: 3,
-      schedule: "1:00 PM - 3:00 PM",
-      day: "Wednesday",
-      semester: "2nd Semester",
-      students: [
-        { id: "23-1011", firstName: "Carlos", lastName: "Reyes" },
-        { id: "23-1022", firstName: "Anne", lastName: "Cruz" },
-      ],
-    },
-  };
+  const facultyFullName = `${facultyData.firstName} ${facultyData.lastName}`;
 
   const reviewData = useMemo(() => {
     const saved = localStorage.getItem(CHAIRPERSON_REVIEW_KEY);
     return saved ? JSON.parse(saved) : {};
   }, []);
 
+  const encodingData = useMemo(() => {
+    const saved = localStorage.getItem("encodingPeriod");
+    return saved ? JSON.parse(saved) : null;
+  }, []);
+
+  const assignments = useMemo(() => {
+    const saved = localStorage.getItem("registrarAssignments");
+    return saved ? JSON.parse(saved) : [];
+  }, []);
+
+  const studentSections = useMemo(() => {
+    const saved = localStorage.getItem("studentSections");
+    return saved ? JSON.parse(saved) : [];
+  }, []);
+
+  const myAssignments = useMemo(() => {
+    return assignments.filter(
+      (assignment) => assignment.facultyName === facultyFullName
+    );
+  }, [assignments, facultyFullName]);
+
+  const sections = useMemo(() => {
+    return myAssignments.reduce((acc, assign) => {
+      const matchedSection = studentSections.find(
+        (section) =>
+          section.section === assign.sectionName &&
+          section.program === assign.program &&
+          section.schoolYear === assign.schoolYear &&
+          section.semester === assign.semester
+      );
+
+      acc[assign.sectionName] = {
+        year: assign.yearLevel,
+        subjectCode: assign.subjectCode,
+        subjectTitle: assign.subjectTitle,
+        sectionCourse: assign.program,
+        units: 3,
+        schedule: assign.schedule || "TBA",
+        day: assign.day || "TBA",
+        semester: assign.semester,
+        schoolYear: assign.schoolYear,
+        students: (matchedSection?.students || []).map((student) => ({
+          id: student.studentId,
+          firstName: student.firstName,
+          lastName: student.lastName,
+        })),
+      };
+
+      return acc;
+    }, {});
+  }, [myAssignments, studentSections]);
+
   const activeGradeKey = systemSettings.semester;
 
   const getSectionProgress = (sectionName, sectionData) => {
-    const currentSectionGrades = allGrades?.[activeGradeKey]?.[sectionName] || {};
+    const currentSectionGrades =
+      allGrades?.[activeGradeKey]?.[sectionName] || {};
+
+    if (!sectionData.students.length) return 0;
 
     const encodedCount = sectionData.students.filter((student) => {
       const record = currentSectionGrades[student.id];
@@ -90,26 +106,26 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
     return Math.round((encodedCount / sectionData.students.length) * 100);
   };
 
-  const getReviewKey = (sectionName) =>
-    [1, sectionName, "2025-2026", systemSettings.semester].join("__");
+  const getReviewKey = (sectionName, schoolYear) =>
+    [1, sectionName, schoolYear, systemSettings.semester].join("__");
 
-  const filteredSections = Object.entries(sections).filter(([sectionName, sectionData]) => {
-    const matchesYear = activeTab === "All Sections" || sectionData.year === activeTab;
-    const searchValue = selectedProgram.toLowerCase();
+  const filteredSections = Object.entries(sections).filter(
+    ([sectionName, sectionData]) => {
+      const matchesYear =
+        activeTab === "All Sections" || sectionData.year === activeTab;
 
-    const matchesSearch =
-      selectedProgram === "" ||
-      sectionName.toLowerCase().includes(searchValue) ||
-      sectionData.subjectTitle.toLowerCase().includes(searchValue) ||
-      sectionData.sectionCourse.toLowerCase().includes(searchValue);
+      const searchValue = selectedProgram.toLowerCase();
 
-    return matchesYear && matchesSearch;
-  });
+      const matchesSearch =
+        selectedProgram === "" ||
+        sectionName.toLowerCase().includes(searchValue) ||
+        sectionData.subjectTitle.toLowerCase().includes(searchValue) ||
+        sectionData.sectionCourse.toLowerCase().includes(searchValue) ||
+        sectionData.subjectCode.toLowerCase().includes(searchValue);
 
-  const encodingData = useMemo(() => {
-    const saved = localStorage.getItem("encodingPeriod");
-    return saved ? JSON.parse(saved) : null;
-  }, []);
+      return matchesYear && matchesSearch;
+    }
+  );
 
   const ENCODING_START = encodingData?.startDate
     ? new Date(`${encodingData.startDate}T00:00:00`)
@@ -167,7 +183,11 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
       {!selectedSection ? (
         <>
           <div className="mt-6 flex flex-col gap-4 px-4 md:flex-row md:items-center">
-            <YearTabs activeTab={activeTab} setActiveTab={setActiveTab} sections={sections} />
+            <YearTabs
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              sections={sections}
+            />
 
             <div className="flex max-w-xl flex-1 items-center">
               <SearchWithDropdown
@@ -178,24 +198,35 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
           </div>
 
           <div className="grid grid-cols-1 gap-6 px-4 pb-8 pt-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredSections.map(([sectionName, sectionData]) => {
-              const reviewRecord = reviewData[getReviewKey(sectionName)] || {
-                status: "pending",
-                note: "",
-              };
+            {filteredSections.length > 0 ? (
+              filteredSections.map(([sectionName, sectionData]) => {
+                const reviewRecord =
+                  reviewData[
+                    getReviewKey(sectionName, sectionData.schoolYear)
+                  ] || {
+                    status: "pending",
+                    note: "",
+                  };
 
-              return (
-                <ProgramCard
-                  key={sectionName}
-                  sectionName={sectionName}
-                  sectionData={sectionData}
-                  progress={getSectionProgress(sectionName, sectionData)}
-                  reviewStatus={reviewRecord.status}
-                  reviewNote={reviewRecord.note}
-                  onClick={() => setSelectedSection({ sectionName, ...sectionData })}
-                />
-              );
-            })}
+                return (
+                  <ProgramCard
+                    key={sectionName}
+                    sectionName={sectionName}
+                    sectionData={sectionData}
+                    progress={getSectionProgress(sectionName, sectionData)}
+                    reviewStatus={reviewRecord.status}
+                    reviewNote={reviewRecord.note}
+                    onClick={() =>
+                      setSelectedSection({ sectionName, ...sectionData })
+                    }
+                  />
+                );
+              })
+            ) : (
+              <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
+                No assigned sections yet.
+              </div>
+            )}
           </div>
         </>
       ) : (
@@ -204,7 +235,9 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
           onBack={() => setSelectedSection(null)}
           systemTerm={systemSettings.term}
           activeGradeKey={activeGradeKey}
-          grades={allGrades?.[activeGradeKey]?.[selectedSection.sectionName] || {}}
+          grades={
+            allGrades?.[activeGradeKey]?.[selectedSection.sectionName] || {}
+          }
           setAllGrades={setAllGrades}
         />
       )}
