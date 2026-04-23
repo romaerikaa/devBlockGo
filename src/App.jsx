@@ -53,18 +53,47 @@ function App() {
         code: "IT 101",
         name: "Introduction to Computing",
         units: 3,
+        midterm: 70,
+        finals: 70,
+      },
+       {
+        code: "IT 201",
+        name: "Web Design",
+        units: 3,
         midterm: 90,
-        finals: 92,
+        finals: 90,
+      },
+      {
+        code: "IT 201",
+        name: "App Dev",
+        units: 3,
+        midterm: 70,
+        finals: 70,
       },
     ],
   };
 
+  console.log("Student Data in App.jsx:", studentData);
+  // Helper function to calculate failed subjects
+  const calculateFailedSubjects = (subjects) => {
+    let failedCount = 0;
+    subjects.forEach(sub => {
+      const finalNumeric = (sub.midterm + sub.finals) / 2; // Assuming average of midterm and finals
+      if (finalNumeric < 75) { // Assuming 75 is the passing grade threshold
+        failedCount++;
+      }
+    });
+    return failedCount;
+  };
+
+
   if (!userRole) {
     return <LoginPage onLogin={handleLogin} />;
   }
-
   if (userRole === "student") {
-    return <StudentPortal studentData={studentData} onLogout={handleLogout} />;
+    const failedSubjectsCount = calculateFailedSubjects(studentData.subjects);
+    return <StudentPortal studentData={studentData} onLogout={handleLogout} failedSubjectsCount={failedSubjectsCount} />;
+    console.log("Calculated failedSubjectsCount in App.jsx:", failedSubjectsCount); // This console.log will not execute because of the return statement above it.
   }
 
   if (userRole === "faculty") {

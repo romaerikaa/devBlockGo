@@ -1,3 +1,4 @@
+import infoLogo from "../../assets/infoLogo.webp"; // Assuming infoLogo.webp exists in your assets folder
 const StudentInfoCard = ({ studentData }) => {
   return (
     <div className="mx-4 mt-5 rounded-xl border border-[#003366] bg-gray-100 p-4 md:mx-6 md:p-6">
@@ -51,6 +52,12 @@ const StudentInfoCard = ({ studentData }) => {
           <p className="text-gray-500">Address</p>
           <p className="font-semibold">{studentData.address}</p>
         </div>
+
+        <div className="col-span-2 md:col-span-3 border-t border-gray-300 pt-4 mt-4"></div>
+        <p className="personal-info-note text-gray-600 col-span-2 flex items-center gap-2 md:col-span-2">
+          <img src={infoLogo} alt="info Logo" className="info-logo h-5 w-5" />
+          If your personal information is incorrect or requires an update, kindly visit the Office of the Registrar for assistance.
+        </p>
 
       </div>
     </div>

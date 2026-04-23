@@ -61,10 +61,10 @@ export const getSectionReviewRecord = ({ reviewData = {}, reviewKey }) =>
   };
 
 export const getReviewStatusLabel = (status = "pending") => {
-  if (status === "returned") return "Returned to Faculty";
-  if (status === "approved") return "Approved by Chairperson";
-  if (status === "submitted") return "Submitted to Registrar";
-  return "Pending Review";
+  if (status === "returned") return "Returned to Faculty"; // Chairperson returned to faculty
+  if (status === "approved") return "Approved by Chairperson"; // Chairperson approved, ready for Registrar
+  if (status === "submitted") return "Submitted for Review"; // Faculty submitted to Chairperson
+  return "Pending Faculty Submission"; // Initial state, faculty hasn't submitted
 };
 
 export const getReviewStatusClasses = (status = "pending") => {
@@ -83,10 +83,12 @@ export const getReviewStatusClasses = (status = "pending") => {
   return "bg-amber-100 text-amber-700 border border-amber-200";
 };
 
-export const getEncodedCount = ({ grades = {}, students = [], activeTerm = "finals" }) =>
+export const getEncodedCount = ({ grades = {}, students = [], assignment, activeTerm = "finals" }) =>
   students.filter((student) => {
-    const record = grades[student.studentId] || grades[student.id] || {};
-    return activeTerm === "midterm" ? !!record.midterm : !!record.finals;
+    const studentGradesForSubject = grades[student.id]?.[assignment.subjectCode] || {};
+    return activeTerm === "midterm"
+      ? studentGradesForSubject.midterm !== undefined && studentGradesForSubject.midterm !== null
+      : studentGradesForSubject.finals !== undefined && studentGradesForSubject.finals !== null;
   }).length;
 
 export const getFacultyStatus = ({ encodedSections = 0, totalSections = 0 }) => {

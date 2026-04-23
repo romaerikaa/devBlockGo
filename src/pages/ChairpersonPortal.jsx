@@ -17,7 +17,7 @@ import {
 
 function ChairpersonPortal({ onLogout, allGrades = {} }) {
   const chairpersonData = {
-    name: "Prof. Elena Marquez",
+    name: "Elena Marquez",
     department: "BSIT",
     schoolYear: "2025-2026",
     semester: "2nd Semester",

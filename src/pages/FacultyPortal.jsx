@@ -6,6 +6,7 @@ import SearchWithDropdown from "../components/faculty/SearchWithDropdown";
 import ProgramCard from "../components/faculty/ProgramCard";
 import GradingTable from "../components/faculty/GradingTable";
 import { CHAIRPERSON_REVIEW_KEY } from "../utils/chairpersonHelpers";
+import { buildReviewKey } from "../utils/chairpersonHelpers";
 
 const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
   const [activeTab, setActiveTab] = useState("All Sections");

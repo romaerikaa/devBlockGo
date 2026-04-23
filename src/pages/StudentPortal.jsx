@@ -8,7 +8,7 @@ import {
   isDeanLister,
 } from "../utils/studentHelpers";
 
-const StudentPortal = ({ studentData, onLogout }) => {
+const StudentPortal = ({ studentData, onLogout, failedSubjectsCount }) => {
   const totalUnits = getTotalUnits(studentData.subjects);
   const gwa = getCalculatedGWA(studentData.subjects);
   const isDeansLister = isDeanLister(studentData.subjects, gwa);
@@ -21,6 +21,7 @@ const StudentPortal = ({ studentData, onLogout }) => {
         totalUnits={totalUnits}
         gwa={gwa}
         isDeansLister={isDeansLister}
+        failedSubjectsCount={failedSubjectsCount}
       />
       <StudentGradesTable subjects={studentData.subjects} />
     </div>

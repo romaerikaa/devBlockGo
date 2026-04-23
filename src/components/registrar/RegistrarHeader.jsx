@@ -16,7 +16,7 @@ function RegistrarHeader({ registrarData, onLogout }) {
           </div>
 
           <div className="leading-tight">
-            <p className="text-sm font-medium text-white/80">Registrar Portal</p>
+            <p className="text-sm text-white/80">Registrar Portal</p>
             <h1 className="text-xl font-bold text-white">
               Welcome, {registrarData?.name || "Registrar"}
             </h1>

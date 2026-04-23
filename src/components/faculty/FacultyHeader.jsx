@@ -15,10 +15,13 @@ const FacultyHeader = ({ facultyData, totalSections, onLogout }) => {
             className="w-10 h-10 object-contain"
           />
 
-          <h1 className="text-white text-sm font-semibold">
-            Welcome, {facultyData.sex === "Male" ? "Mr." : "Ms."}{" "}
-            {facultyData.lastName}!
-          </h1>
+          <div className="leading-tight">
+         <p className="text-sm font-medium text-white/80">Faculty Portal</p>
+        <h1 className="text-white text-sm font-semibold">
+          Welcome, {facultyData.sex === "Male" ? "Mr." : "Ms."}{" "}
+          {facultyData.lastName}!
+        </h1>
+      </div>
         </div>
 
         <button
