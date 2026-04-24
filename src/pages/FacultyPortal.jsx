@@ -1,12 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import FacultyHeader from "../components/faculty/FacultyHeader";
 import EncodingBanner from "../components/faculty/EncodingBanner";
 import YearTabs from "../components/faculty/YearTabs";
 import SearchWithDropdown from "../components/faculty/SearchWithDropdown";
 import ProgramCard from "../components/faculty/ProgramCard";
 import GradingTable from "../components/faculty/GradingTable";
-import { CHAIRPERSON_REVIEW_KEY } from "../utils/chairpersonHelpers";
-import { buildReviewKey } from "../utils/chairpersonHelpers";
+import { CHAIRPERSON_REVIEW_KEY, buildReviewKey } from "../utils/chairpersonHelpers";
+
+const buildStudentRosterSignature = (students = []) =>
+  students
+    .map((student) => `${student.id}:${student.lastName}:${student.firstName}`)
+    .sort()
+    .join("|");
 
 const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
   const [activeTab, setActiveTab] = useState("All Sections");
@@ -15,7 +20,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
 
   const [systemSettings] = useState({
     semester: "2nd Semester",
-    term: "finals",
+    term: "midterm",
   });
 
   const facultyData = {
@@ -29,10 +34,14 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
 
   const facultyFullName = `${facultyData.firstName} ${facultyData.lastName}`;
 
-  const reviewData = useMemo(() => {
+  const [reviewData, setReviewData] = useState(() => {
     const saved = localStorage.getItem(CHAIRPERSON_REVIEW_KEY);
     return saved ? JSON.parse(saved) : {};
-  }, []);
+  });
+
+  useEffect(() => {
+    localStorage.setItem(CHAIRPERSON_REVIEW_KEY, JSON.stringify(reviewData));
+  }, [reviewData]);
 
   const encodingData = useMemo(() => {
     const saved = localStorage.getItem("encodingPeriod");
@@ -88,6 +97,40 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
 
   const activeGradeKey = systemSettings.semester;
 
+  useEffect(() => {
+    setReviewData((prev) => {
+      let hasChanges = false;
+      const next = { ...prev };
+
+      Object.entries(sections).forEach(([sectionName, sectionData]) => {
+        const reviewKey = getReviewKey(sectionName, sectionData);
+        const record = next[reviewKey];
+
+        if (!record) return;
+
+        const currentRosterSignature = buildStudentRosterSignature(sectionData.students);
+        const savedRosterSignature = record.studentRosterSignature || "";
+        const isLockedStatus = ["submitted", "approved", "forwarded"].includes(
+          record.status
+        );
+
+        if (isLockedStatus && savedRosterSignature !== currentRosterSignature) {
+          next[reviewKey] = {
+            ...record,
+            status: "pending",
+            note:
+              "Roster updated by registrar. Faculty may encode and submit this section again.",
+            lastUpdated: new Date().toISOString(),
+            studentRosterSignature: currentRosterSignature,
+          };
+          hasChanges = true;
+        }
+      });
+
+      return hasChanges ? next : prev;
+    });
+  }, [sections]);
+
   const getSectionProgress = (sectionName, sectionData) => {
     const currentSectionGrades =
       allGrades?.[activeGradeKey]?.[sectionName] || {};
@@ -107,8 +150,37 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
     return Math.round((encodedCount / sectionData.students.length) * 100);
   };
 
-  const getReviewKey = (sectionName, schoolYear) =>
-    [1, sectionName, schoolYear, systemSettings.semester].join("__");
+  const getReviewKey = (sectionName, sectionData) =>
+    buildReviewKey({
+      facultyId: 1,
+      sectionName,
+      schoolYear: sectionData.schoolYear,
+      semester: sectionData.semester,
+    });
+
+  const submitSectionToChairperson = (sectionName, sectionData) => {
+    const reviewKey = getReviewKey(sectionName, sectionData);
+
+    setReviewData((prev) => {
+      const previousRecord = prev[reviewKey] || {};
+
+      return {
+        ...prev,
+        [reviewKey]: {
+          ...previousRecord,
+          status: "submitted",
+          lastUpdated: new Date().toISOString(),
+          facultyId: 1,
+          facultyName: facultyFullName,
+          sectionName,
+          department: sectionData.sectionCourse,
+          schoolYear: sectionData.schoolYear,
+          semester: sectionData.semester,
+          studentRosterSignature: buildStudentRosterSignature(sectionData.students),
+        },
+      };
+    });
+  };
 
   const filteredSections = Object.entries(sections).filter(
     ([sectionName, sectionData]) => {
@@ -202,9 +274,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
             {filteredSections.length > 0 ? (
               filteredSections.map(([sectionName, sectionData]) => {
                 const reviewRecord =
-                  reviewData[
-                    getReviewKey(sectionName, sectionData.schoolYear)
-                  ] || {
+                  reviewData[getReviewKey(sectionName, sectionData)] || {
                     status: "pending",
                     note: "",
                   };
@@ -217,6 +287,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
                     progress={getSectionProgress(sectionName, sectionData)}
                     reviewStatus={reviewRecord.status}
                     reviewNote={reviewRecord.note}
+                    onSubmit={() => submitSectionToChairperson(sectionName, sectionData)}
                     onClick={() =>
                       setSelectedSection({ sectionName, ...sectionData })
                     }
@@ -240,6 +311,14 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
             allGrades?.[activeGradeKey]?.[selectedSection.sectionName] || {}
           }
           setAllGrades={setAllGrades}
+          reviewStatus={
+            reviewData[getReviewKey(selectedSection.sectionName, selectedSection)]
+              ?.status || "pending"
+          }
+          reviewNote={
+            reviewData[getReviewKey(selectedSection.sectionName, selectedSection)]
+              ?.note || ""
+          }
         />
       )}
     </div>

@@ -22,6 +22,7 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
     schoolYear: "2025-2026",
     semester: "2nd Semester",
   };
+  const chairpersonDepartment = chairpersonData.department;
 
   const [activeTab, setActiveTab] = useState("dashboard");
   const [reviewData, setReviewData] = useState(() => {
@@ -56,9 +57,9 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
     });
 
     return facultyDirectory.filter(
-      (faculty) => faculty.department === chairpersonData.department
+      (faculty) => faculty.department === chairpersonDepartment
     );
-  }, [assignments]);
+  }, [assignments, chairpersonDepartment]);
 
   const monitoredRows = useMemo(() => {
     return departmentFaculty.flatMap((faculty) => {
@@ -128,8 +129,10 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
     return {
       totalFaculty: departmentFaculty.length,
       totalSections: monitoredRows.length,
+      submittedSections: monitoredRows.filter((row) => row.reviewStatus === "submitted").length,
       approvedSections: monitoredRows.filter((row) => row.reviewStatus === "approved").length,
       returnedSections: monitoredRows.filter((row) => row.reviewStatus === "returned").length,
+      forwardedSections: monitoredRows.filter((row) => row.reviewStatus === "forwarded").length,
       completedFaculty: facultySummaries.filter((status) => status === "Completed").length,
     };
   }, [departmentFaculty, monitoredRows]);
@@ -152,6 +155,26 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
       },
     }));
   };
+
+  const filteredRows = useMemo(() => {
+    if (activeTab === "forReview") {
+      return monitoredRows.filter((row) => row.reviewStatus === "submitted");
+    }
+
+    if (activeTab === "returned") {
+      return monitoredRows.filter((row) => row.reviewStatus === "returned");
+    }
+
+    if (activeTab === "approved") {
+      return monitoredRows.filter((row) => row.reviewStatus === "approved");
+    }
+
+    if (activeTab === "forwarded") {
+      return monitoredRows.filter((row) => row.reviewStatus === "forwarded");
+    }
+
+    return monitoredRows;
+  }, [activeTab, monitoredRows]);
 
   return (
     <div className="min-h-screen bg-[#f3f4f6]">
@@ -176,7 +199,7 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
             <ChairpersonOverview metrics={metrics} />
 
             <FacultyStatusTable
-              rows={activeTab === "submitted" ? monitoredRows.filter((row) => row.reviewStatus === "submitted") : monitoredRows}
+              rows={filteredRows}
               selectedReviewKey={selectedReviewKey}
               onSelectSection={(row) => setSelectedReviewKey(row.reviewKey)}
             />
@@ -186,7 +209,7 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
               activeTerm={activeTerm}
               onSendBack={(note) => updateReviewStatus("returned", note)}
               onApprove={(note) => updateReviewStatus("approved", note)}
-              onSubmitToRegistrar={(note) => updateReviewStatus("submitted", note)}
+              onSubmitToRegistrar={(note) => updateReviewStatus("forwarded", note)}
             />
           </main>
         </div>

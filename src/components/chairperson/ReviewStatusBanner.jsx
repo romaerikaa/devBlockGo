@@ -10,7 +10,9 @@ function ReviewStatusBanner({ reviewStatus, reviewNote }) {
   return (
     <div className={`mt-3 rounded-xl px-4 py-3 text-sm ${getReviewStatusClasses(reviewStatus)}`}>
       <p className="font-semibold">{getReviewStatusLabel(reviewStatus)}</p>
-      {reviewNote ? <p className="mt-1">Chairperson Note: {reviewNote}</p> : null}
+      {reviewStatus === "returned" && reviewNote ? (
+        <p className="mt-1">Chairperson Note: {reviewNote}</p>
+      ) : null}
     </div>
   );
 }

@@ -61,10 +61,11 @@ export const getSectionReviewRecord = ({ reviewData = {}, reviewKey }) =>
   };
 
 export const getReviewStatusLabel = (status = "pending") => {
-  if (status === "returned") return "Returned to Faculty"; // Chairperson returned to faculty
-  if (status === "approved") return "Approved by Chairperson"; // Chairperson approved, ready for Registrar
-  if (status === "submitted") return "Submitted for Review"; // Faculty submitted to Chairperson
-  return "Pending Faculty Submission"; // Initial state, faculty hasn't submitted
+  if (status === "returned") return "Returned to Faculty";
+  if (status === "approved") return "Approved by Chairperson";
+  if (status === "forwarded") return "Forwarded to Registrar";
+  if (status === "submitted") return "Submitted to Chairperson";
+  return "Not Yet Submitted";
 };
 
 export const getReviewStatusClasses = (status = "pending") => {
@@ -76,6 +77,10 @@ export const getReviewStatusClasses = (status = "pending") => {
     return "bg-emerald-100 text-emerald-700 border border-emerald-200";
   }
 
+  if (status === "forwarded") {
+    return "bg-violet-100 text-violet-700 border border-violet-200";
+  }
+
   if (status === "submitted") {
     return "bg-blue-100 text-blue-700 border border-blue-200";
   }
@@ -83,12 +88,18 @@ export const getReviewStatusClasses = (status = "pending") => {
   return "bg-amber-100 text-amber-700 border border-amber-200";
 };
 
-export const getEncodedCount = ({ grades = {}, students = [], assignment, activeTerm = "finals" }) =>
+export const getEncodedCount = ({ grades = {}, students = [], activeTerm = "finals" }) =>
   students.filter((student) => {
-    const studentGradesForSubject = grades[student.id]?.[assignment.subjectCode] || {};
+    const studentGradesForSubject =
+      grades[student.id] || grades[student.studentId] || {};
+
     return activeTerm === "midterm"
-      ? studentGradesForSubject.midterm !== undefined && studentGradesForSubject.midterm !== null
-      : studentGradesForSubject.finals !== undefined && studentGradesForSubject.finals !== null;
+      ? studentGradesForSubject.midterm !== undefined &&
+          studentGradesForSubject.midterm !== null &&
+          studentGradesForSubject.midterm !== ""
+      : studentGradesForSubject.finals !== undefined &&
+          studentGradesForSubject.finals !== null &&
+          studentGradesForSubject.finals !== "";
   }).length;
 
 export const getFacultyStatus = ({ encodedSections = 0, totalSections = 0 }) => {
@@ -103,6 +114,14 @@ export const getFacultyStatusClasses = (status) => {
   if (status === "In Progress") return "bg-yellow-100 text-yellow-700";
   if (status === "No Assigned Sections") return "bg-slate-100 text-slate-600";
   return "bg-red-100 text-red-700";
+};
+
+export const getChairActionLabel = (status = "pending") => {
+  if (status === "returned") return "Returned for Correction";
+  if (status === "approved") return "Approved";
+  if (status === "forwarded") return "Sent to Registrar";
+  if (status === "submitted") return "Needs Review";
+  return "Waiting for Faculty";
 };
 
 export const buildReviewKey = (assignment) =>

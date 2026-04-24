@@ -1,36 +1,41 @@
-import React from "react";
+import React, { useMemo } from "react";
+import { CHAIRPERSON_REVIEW_KEY } from "../../utils/chairpersonHelpers";
 
 function RegistrarDashboard() {
+  const reviewRecords = useMemo(() => {
+    const saved = localStorage.getItem(CHAIRPERSON_REVIEW_KEY);
+    return Object.values(saved ? JSON.parse(saved) : {});
+  }, []);
+
   const overviewCards = [
     {
-      title: "Total Faculty",
-      value: 18,
-      subtitle: "Active faculty accounts",
+      title: "Forwarded by Chairperson",
+      value: reviewRecords.filter((item) => item.status === "forwarded").length,
+      subtitle: "Sections already endorsed to the registrar",
     },
     {
-      title: "Total Sections",
-      value: 42,
-      subtitle: "Available sections this semester",
+      title: "Approved by Chairperson",
+      value: reviewRecords.filter((item) => item.status === "approved").length,
+      subtitle: "Sections approved but not yet forwarded",
     },
     {
-      title: "Encoded Sections",
-      value: 26,
-      subtitle: "Sections with submitted grades",
+      title: "Returned to Faculty",
+      value: reviewRecords.filter((item) => item.status === "returned").length,
+      subtitle: "Sections sent back for correction",
     },
     {
-      title: "Pending Sections",
-      value: 16,
-      subtitle: "Sections not yet completed",
+      title: "Submitted to Chairperson",
+      value: reviewRecords.filter((item) => item.status === "submitted").length,
+      subtitle: "Sections still under chairperson review",
     },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Overview Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {overviewCards.map((card, index) => (
+        {overviewCards.map((card) => (
           <div
-            key={index}
+            key={card.title}
             className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
           >
             <p className="text-sm font-medium text-slate-500">{card.title}</p>
@@ -42,37 +47,42 @@ function RegistrarDashboard() {
         ))}
       </div>
 
-      {/* Encoding Status Card */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h3 className="text-xl font-bold text-[#003366]">
-              Grade Encoding Status
+              Chairperson to Registrar Flow
             </h3>
             <p className="mt-1 text-sm text-slate-500">
-              The current encoding period is active for all assigned faculty.
+              View which section grades have already been approved by the chairperson and which have been forwarded to the registrar.
             </p>
           </div>
 
-          <div className="inline-flex w-fit rounded-full bg-green-100 px-4 py-2 text-sm font-semibold text-green-700">
-            Encoding Open
+          <div className="inline-flex w-fit rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
+            Workflow Tracking
           </div>
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-sm text-slate-500">Start Date</p>
-            <p className="mt-1 font-semibold text-slate-800">May 01, 2026</p>
+            <p className="text-sm text-slate-500">Forwarded Sections</p>
+            <p className="mt-1 font-semibold text-slate-800">
+              {reviewRecords.filter((item) => item.status === "forwarded").length}
+            </p>
           </div>
 
           <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-sm text-slate-500">Deadline</p>
-            <p className="mt-1 font-semibold text-slate-800">May 15, 2026</p>
+            <p className="text-sm text-slate-500">Awaiting Registrar</p>
+            <p className="mt-1 font-semibold text-slate-800">
+              {reviewRecords.filter((item) => item.status === "approved").length}
+            </p>
           </div>
 
           <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-sm text-slate-500">Semester</p>
-            <p className="mt-1 font-semibold text-slate-800">2nd Semester</p>
+            <p className="text-sm text-slate-500">Needs Faculty Revision</p>
+            <p className="mt-1 font-semibold text-slate-800">
+              {reviewRecords.filter((item) => item.status === "returned").length}
+            </p>
           </div>
         </div>
       </div>

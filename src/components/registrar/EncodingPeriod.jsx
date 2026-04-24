@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-function EncodingPeriod() {
+function EncodingPeriod({ onResetEncodingSeason }) {
   const [startDate, setStartDate] = useState("2026-05-01");
   const [endDate, setEndDate] = useState("2026-05-15");
 
@@ -40,6 +40,17 @@ function EncodingPeriod() {
 
     localStorage.setItem("encodingPeriod", JSON.stringify(encodingData));
     alert("Encoding period saved successfully.");
+  };
+
+  const handleResetSeason = () => {
+    const shouldReset = window.confirm(
+      "Reset this encoding season? This will clear saved faculty grades and chairperson review statuses."
+    );
+
+    if (!shouldReset) return;
+
+    onResetEncodingSeason?.();
+    alert("Encoding season data has been reset.");
   };
 
   return (
@@ -94,12 +105,19 @@ function EncodingPeriod() {
           </div>
         </div>
 
-        <div className="mt-6">
+        <div className="mt-6 flex flex-wrap gap-3">
           <button
             onClick={handleSave}
             className="rounded-xl bg-[#003366] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#00264d]"
           >
             Save Schedule
+          </button>
+
+          <button
+            onClick={handleResetSeason}
+            className="rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+          >
+            Reset Encoding Season
           </button>
         </div>
       </div>

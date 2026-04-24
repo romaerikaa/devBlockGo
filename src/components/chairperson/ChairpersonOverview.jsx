@@ -13,14 +13,19 @@ function ChairpersonOverview({ metrics }) {
       subtitle: "Assigned sections awaiting monitoring or review",
     },
     {
-      title: "Approved Sections",
-      value: metrics.approvedSections,
-      subtitle: "Sections already approved by the chairperson",
+      title: "Submitted Sections",
+      value: metrics.submittedSections,
+      subtitle: "Faculty submissions waiting for chairperson review",
     },
     {
       title: "Returned Sections",
       value: metrics.returnedSections,
       subtitle: "Sections sent back to faculty for correction",
+    },
+    {
+      title: "Approved Sections",
+      value: metrics.approvedSections,
+      subtitle: "Sections approved and ready to forward to registrar",
     },
   ];
 

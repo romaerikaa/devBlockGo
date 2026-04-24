@@ -7,7 +7,7 @@ import EncodingPeriod from "../components/registrar/EncodingPeriod";
 import AcademicAssignment from "../components/registrar/AcademicAssignment";
 import StudentListImport from "../components/registrar/StudentListImport";
 
-function RegistrarPortal({ onLogout }) {
+function RegistrarPortal({ onLogout, onResetEncodingSeason }) {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   const registrarData = {
@@ -64,7 +64,7 @@ function RegistrarPortal({ onLogout }) {
   }
 
   if (activeTab === "encoding") {
-    return <EncodingPeriod />;
+    return <EncodingPeriod onResetEncodingSeason={onResetEncodingSeason} />;
   }
 
   if (activeTab === "studentlist") {

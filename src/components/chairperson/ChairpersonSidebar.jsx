@@ -3,8 +3,10 @@ import React from "react";
 function ChairpersonSidebar({ activeTab, setActiveTab }) {
   const menuItems = [
     { id: "dashboard", label: "Dashboard" },
-    { id: "review", label: "Section Review" },
-    { id: "submitted", label: "Submitted to Registrar" },
+    { id: "forReview", label: "For Review" },
+    { id: "returned", label: "Returned" },
+    { id: "approved", label: "Approved" },
+    { id: "forwarded", label: "To Registrar" },
   ];
 
   return (

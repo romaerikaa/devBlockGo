@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  getChairActionLabel,
   getFacultyStatusClasses,
   getReviewStatusClasses,
   getReviewStatusLabel,
@@ -12,8 +13,8 @@ function FacultyStatusTable({ rows, selectedReviewKey, onSelectSection }) {
         <div>
           <h3 className="text-xl font-bold text-[#003366]">Faculty Encoding Monitoring</h3>
           <p className="mt-1 text-sm text-slate-500">
-            Track which faculty members have already encoded grades and review every
-            submitted section before it reaches the registrar.
+            Track who has not encoded yet, who already submitted to the chairperson,
+            and which sections are approved or forwarded to the registrar.
           </p>
         </div>
       </div>
@@ -28,6 +29,7 @@ function FacultyStatusTable({ rows, selectedReviewKey, onSelectSection }) {
               <th className="px-4 py-3 text-left text-sm">Encoding</th>
               <th className="px-4 py-3 text-left text-sm">Faculty Status</th>
               <th className="px-4 py-3 text-left text-sm">Chairperson Review</th>
+              <th className="px-4 py-3 text-left text-sm">Workflow State</th>
               <th className="px-4 py-3 text-left text-sm">Action</th>
             </tr>
           </thead>
@@ -77,6 +79,9 @@ function FacultyStatusTable({ rows, selectedReviewKey, onSelectSection }) {
                         {getReviewStatusLabel(row.reviewStatus)}
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      {getChairActionLabel(row.reviewStatus)}
+                    </td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => onSelectSection(row)}
@@ -90,7 +95,7 @@ function FacultyStatusTable({ rows, selectedReviewKey, onSelectSection }) {
               })
             ) : (
               <tr>
-                <td colSpan="7" className="py-8 text-center text-slate-500">
+                <td colSpan="8" className="py-8 text-center text-slate-500">
                   No faculty sections found for this department yet.
                 </td>
               </tr>

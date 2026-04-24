@@ -4,6 +4,7 @@ import StudentPortal from "./pages/StudentPortal";
 import FacultyPortal from "./pages/FacultyPortal";
 import RegistrarPortal from "./pages/RegistrarPortal";
 import ChairpersonPortal from "./pages/ChairpersonPortal";
+import { CHAIRPERSON_REVIEW_KEY } from "./utils/chairpersonHelpers";
 
 function App() {
   const [userRole, setUserRole] = useState(localStorage.getItem("userRole"));
@@ -36,6 +37,12 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem("userRole");
     setUserRole(null);
+  };
+
+  const handleResetEncodingSeason = () => {
+    localStorage.removeItem("blockgo-allGrades");
+    localStorage.removeItem(CHAIRPERSON_REVIEW_KEY);
+    setAllGrades({});
   };
 
   const studentData = {
@@ -107,7 +114,12 @@ function App() {
   }
 
   if (userRole === "registrar") {
-    return <RegistrarPortal onLogout={handleLogout} />;
+    return (
+      <RegistrarPortal
+        onLogout={handleLogout}
+        onResetEncodingSeason={handleResetEncodingSeason}
+      />
+    );
   }
 
   if (userRole === "chairperson") {

@@ -8,10 +8,23 @@ const ProgramCard = ({
   progress = 0,
   reviewStatus = "pending",
   reviewNote = "",
+  onSubmit,
 }) => {
   const totalStudents = sectionData.students?.length || 0;
   const isStarted = progress > 0;
   const isCompleted = progress >= 100;
+  const isReturned = reviewStatus === "returned";
+  const isSubmitted = reviewStatus === "submitted";
+  const isApproved = reviewStatus === "approved";
+  const isForwarded = reviewStatus === "forwarded";
+
+  const getSubmitLabel = () => {
+    if (isForwarded) return "Sent to Registrar";
+    if (isApproved) return "Approved by Chairperson";
+    if (isSubmitted) return "Submitted to Chairperson";
+    if (isReturned) return "Resubmit to Chairperson";
+    return "Submit to Chairperson";
+  };
 
   return (
     <div
@@ -115,9 +128,14 @@ const ProgramCard = ({
 
         <button
           type="button"
-          className="h-12 rounded-xl border border-green-200 bg-green-50 font-bold text-green-700 transition hover:bg-green-500 hover:text-white"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSubmit?.();
+          }}
+          disabled={!isCompleted || isSubmitted || isApproved || isForwarded}
+          className="h-12 rounded-xl border border-green-200 bg-green-50 font-bold text-green-700 transition hover:bg-green-500 hover:text-white disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
         >
-          Upload to Chairperson
+          {getSubmitLabel()}
         </button>
       </div>
     </div>

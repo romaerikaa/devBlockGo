@@ -13,7 +13,10 @@ function SectionReviewPanel({
   onApprove,
   onSubmitToRegistrar,
 }) {
-  const [note, setNote] = useState(selectedSection?.reviewNote || "");
+  const [draftNotes, setDraftNotes] = useState({});
+  const note = selectedSection
+    ? draftNotes[selectedSection.reviewKey] ?? selectedSection.reviewNote ?? ""
+    : "";
 
   const rows = useMemo(() => {
     if (!selectedSection) return [];
@@ -27,8 +30,10 @@ function SectionReviewPanel({
       const numericMidterm = Number(record.midterm);
       const numericFinals = Number(record.finals);
       const finalAverage =
-        Number.isFinite(numericMidterm) && Number.isFinite(numericFinals) &&
-        numericMidterm > 0 && numericFinals > 0
+        Number.isFinite(numericMidterm) &&
+        Number.isFinite(numericFinals) &&
+        numericMidterm > 0 &&
+        numericFinals > 0
           ? ((numericMidterm + numericFinals) / 2).toFixed(2)
           : "-";
 
@@ -39,7 +44,10 @@ function SectionReviewPanel({
 
       return {
         id: student.studentId || student.id,
-        name: `${student.lastName || ""}, ${student.firstName || ""}`.replace(/^,\s*/, ""),
+        name: `${student.lastName || ""}, ${student.firstName || ""}`.replace(
+          /^,\s*/,
+          ""
+        ),
         midterm: record.midterm || "-",
         finals: record.finals || "-",
         finalAverage,
@@ -70,7 +78,8 @@ function SectionReviewPanel({
           <div>
             <h3 className="text-xl font-bold text-[#003366]">Section Review Details</h3>
             <p className="mt-1 text-sm text-slate-500">
-              {selectedSection.facultyName} • {selectedSection.sectionName} • {selectedSection.schoolYear} • {selectedSection.semester}
+              {selectedSection.facultyName} • {selectedSection.sectionName} •{" "}
+              {selectedSection.schoolYear} • {selectedSection.semester}
             </p>
           </div>
 
@@ -139,8 +148,12 @@ function SectionReviewPanel({
                   <td className="px-4 py-3">{row.finals}</td>
                   <td className="px-4 py-3 font-semibold text-slate-800">{row.finalAverage}</td>
                   <td className="px-4 py-3">{row.gradeEquivalent}</td>
-                  <td className="px-4 py-3 capitalize">{String(row.standing).replaceAll("_", " ")}</td>
-                  <td className="px-4 py-3 capitalize">{String(row.status).replaceAll("_", " ")}</td>
+                  <td className="px-4 py-3 capitalize">
+                    {String(row.standing).replaceAll("_", " ")}
+                  </td>
+                  <td className="px-4 py-3 capitalize">
+                    {String(row.status).replaceAll("_", " ")}
+                  </td>
                   <td className="px-4 py-3">{row.flagged ? "Flagged by faculty" : "-"}</td>
                 </tr>
               ))}
@@ -159,7 +172,14 @@ function SectionReviewPanel({
           <label className="mb-2 block text-sm font-medium text-slate-700">Review Note</label>
           <textarea
             value={note}
-            onChange={(event) => setNote(event.target.value)}
+            onChange={(event) => {
+              if (!selectedSection) return;
+
+              setDraftNotes((prev) => ({
+                ...prev,
+                [selectedSection.reviewKey]: event.target.value,
+              }));
+            }}
             placeholder="Enter the discrepancy, correction request, or approval remark here..."
             className="min-h-[120px] w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#003366]"
           />
@@ -168,21 +188,24 @@ function SectionReviewPanel({
         <div className="mt-6 flex flex-col gap-3 md:flex-row">
           <button
             onClick={() => onSendBack(note)}
-            className="rounded-xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600"
+            disabled={!note.trim() || selectedSection.reviewStatus === "forwarded"}
+            className="rounded-xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             Send Back to Faculty
           </button>
           <button
             onClick={() => onApprove(note)}
-            className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+            disabled={selectedSection.reviewStatus === "forwarded"}
+            className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             Approve Section
           </button>
           <button
             onClick={() => onSubmitToRegistrar(note)}
-            className="rounded-xl bg-[#003366] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#00264d]"
+            disabled={selectedSection.reviewStatus !== "approved"}
+            className="rounded-xl bg-[#003366] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#00264d] disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            Submit to Registrar
+            Forward to Registrar
           </button>
         </div>
       </div>

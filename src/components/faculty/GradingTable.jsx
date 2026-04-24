@@ -16,6 +16,8 @@ const GradingTable = ({
   activeGradeKey,
   grades,
   setAllGrades,
+  reviewStatus = "pending",
+  reviewNote = "",
 }) => {
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const activeTerm = systemTerm;
@@ -99,7 +101,7 @@ const GradingTable = ({
         onClick={onBack}
         className="mb-4 w-full rounded-xl border border-red-200 bg-white px-4 py-2 font-semibold text-red-500 hover:bg-red-500 hover:text-white sm:w-auto"
       >
-        ← Back to Sections
+        Back to Sections
       </button>
 
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-md">
@@ -140,6 +142,13 @@ const GradingTable = ({
             </button>
           </div>
         </div>
+
+        {reviewStatus === "returned" && reviewNote ? (
+          <div className="border-t border-red-100 bg-red-50 px-4 py-4 text-sm text-red-700">
+            <p className="font-semibold">Returned by chairperson</p>
+            <p className="mt-1">{reviewNote}</p>
+          </div>
+        ) : null}
 
         <div className="space-y-3 p-4 md:hidden">
           {selectedSection.students.map((student) => {
@@ -271,10 +280,10 @@ const GradingTable = ({
                   Student Name
                 </th>
                 <th className="px-6 py-4 text-center text-[15px] font-bold uppercase tracking-wide">
-                  Midterm <span className="font-normal text-slate-300">(60–100)</span>
+                  Midterm <span className="font-normal text-slate-300">(60-100)</span>
                 </th>
                 <th className="px-6 py-4 text-center text-[15px] font-bold uppercase tracking-wide">
-                  Finals <span className="font-normal text-slate-300">(60–100)</span>
+                  Finals <span className="font-normal text-slate-300">(60-100)</span>
                 </th>
                 <th className="px-6 py-4 text-center text-[15px] font-bold uppercase tracking-wide">
                   Final Grade
