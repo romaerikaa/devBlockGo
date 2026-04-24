@@ -1,9 +1,22 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
-const BulkUploadModal = ({ isOpen, onClose, sectionData, onUpload, systemTerm }) => {
+const BulkUploadModal = ({
+  isOpen,
+  onClose,
+  sectionData,
+  onUpload,
+  systemTerm,
+  isEncodingOpen = false,
+}) => {
   const [activeTab, setActiveTab] = useState("paste");
   const [pasteText, setPasteText] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
+
+  useEffect(() => {
+    if (isOpen && !isEncodingOpen) {
+      onClose?.();
+    }
+  }, [isEncodingOpen, isOpen, onClose]);
 
   if (!isOpen) return null;
 

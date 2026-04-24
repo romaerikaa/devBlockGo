@@ -40,7 +40,10 @@ export const getSectionStudents = ({ students = [], assignment }) => {
   return students.filter((student) => {
     const sameProgram = normalizeText(student.program) === normalizeText(assignment.program);
     const sameSchoolYear = normalizeText(student.schoolYear) === normalizeText(assignment.schoolYear);
-    const sameSemester = normalizeText(student.semester) === normalizeText(assignment.semester);
+    const sameSemester =
+      !normalizeText(student.semester) ||
+      !normalizeText(assignment.semester) ||
+      normalizeText(student.semester) === normalizeText(assignment.semester);
 
     const sectionOptions = [
       assignment.sectionName,

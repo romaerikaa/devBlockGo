@@ -11,6 +11,7 @@ const StudentRow = ({
   student,
   grades,
   activeTerm,
+  isEncodingOpen,
   handleChange,
   toggleFlagStudent,
   handleStandingChange,
@@ -43,7 +44,11 @@ const StudentRow = ({
           onChange={(e) =>
             handleChange(student.id, "midterm", e.target.value)
           }
-          disabled={activeTerm !== "midterm" || standing !== "active"}
+          disabled={
+            !isEncodingOpen ||
+            activeTerm !== "midterm" ||
+            standing !== "active"
+          }
           className="h-10 w-24 rounded-xl border border-slate-300 bg-white px-2 text-center focus:outline-none focus:ring-2 focus:ring-[#003366] disabled:bg-slate-100 disabled:text-slate-400"
         />
       </td>
@@ -55,7 +60,11 @@ const StudentRow = ({
           onChange={(e) =>
             handleChange(student.id, "finals", e.target.value)
           }
-          disabled={activeTerm !== "finals" || standing !== "active"}
+          disabled={
+            !isEncodingOpen ||
+            activeTerm !== "finals" ||
+            standing !== "active"
+          }
           className="h-10 w-24 rounded-xl border border-slate-300 bg-white px-2 text-center focus:outline-none focus:ring-2 focus:ring-[#003366] disabled:bg-slate-100 disabled:text-slate-400"
         />
       </td>
@@ -82,7 +91,8 @@ const StudentRow = ({
         <select
           value={standing}
           onChange={(e) => handleStandingChange(student.id, e.target.value)}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          disabled={!isEncodingOpen}
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400"
         >
           <option value="active">Active</option>
           <option value="dropped">Dropped</option>
@@ -96,11 +106,12 @@ const StudentRow = ({
         <button
           type="button"
           onClick={() => toggleFlagStudent(student.id)}
+          disabled={!isEncodingOpen}
           className={`rounded-lg px-3 py-2 text-sm font-bold transition ${
             isFlagged
               ? "bg-red-100 text-red-600 hover:bg-red-200"
               : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-          }`}
+          } disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400`}
         >
           {isFlagged ? "Unflag" : "Flag"}
         </button>

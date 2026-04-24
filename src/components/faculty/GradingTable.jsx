@@ -14,6 +14,7 @@ const GradingTable = ({
   onBack,
   systemTerm,
   activeGradeKey,
+  isEncodingOpen = false,
   grades,
   setAllGrades,
   reviewStatus = "pending",
@@ -129,7 +130,8 @@ const GradingTable = ({
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               onClick={() => setShowBulkUpload(true)}
-              className="rounded-lg bg-yellow-400 px-4 py-2 text-sm font-bold text-[#003366] hover:bg-yellow-500"
+              disabled={!isEncodingOpen}
+              className="rounded-lg bg-yellow-400 px-4 py-2 text-sm font-bold text-[#003366] hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
             >
               Bulk Upload
             </button>
@@ -147,6 +149,16 @@ const GradingTable = ({
           <div className="border-t border-red-100 bg-red-50 px-4 py-4 text-sm text-red-700">
             <p className="font-semibold">Returned by chairperson</p>
             <p className="mt-1">{reviewNote}</p>
+          </div>
+        ) : null}
+
+        {!isEncodingOpen ? (
+          <div className="border-t border-amber-100 bg-amber-50 px-4 py-4 text-sm text-amber-700">
+            <p className="font-semibold">Encoding is closed</p>
+            <p className="mt-1">
+              Faculty can view this grading table, but grade entry is locked
+              until the registrar reopens the encoding period.
+            </p>
           </div>
         ) : null}
 
@@ -174,11 +186,12 @@ const GradingTable = ({
                   <button
                     type="button"
                     onClick={() => toggleFlagStudent(student.id)}
+                    disabled={!isEncodingOpen}
                     className={`rounded-lg px-3 py-1 text-xs font-bold ${
                       isFlagged
                         ? "bg-red-100 text-red-600"
                         : "bg-slate-100 text-slate-600"
-                    }`}
+                    } disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400`}
                   >
                     {isFlagged ? "Unflag" : "Flag"}
                   </button>
@@ -200,7 +213,11 @@ const GradingTable = ({
                       onChange={(e) =>
                         handleChange(student.id, "midterm", e.target.value)
                       }
-                      disabled={activeTerm !== "midterm" || standing !== "active"}
+                      disabled={
+                        !isEncodingOpen ||
+                        activeTerm !== "midterm" ||
+                        standing !== "active"
+                      }
                       className="h-10 w-full rounded-xl border border-slate-300 bg-white px-2 text-center focus:outline-none focus:ring-2 focus:ring-[#003366] disabled:bg-slate-100 disabled:text-slate-400"
                     />
                   </div>
@@ -213,7 +230,11 @@ const GradingTable = ({
                       onChange={(e) =>
                         handleChange(student.id, "finals", e.target.value)
                       }
-                      disabled={activeTerm !== "finals" || standing !== "active"}
+                      disabled={
+                        !isEncodingOpen ||
+                        activeTerm !== "finals" ||
+                        standing !== "active"
+                      }
                       className="h-10 w-full rounded-xl border border-slate-300 bg-white px-2 text-center focus:outline-none focus:ring-2 focus:ring-[#003366] disabled:bg-slate-100 disabled:text-slate-400"
                     />
                   </div>
@@ -254,7 +275,8 @@ const GradingTable = ({
                       onChange={(e) =>
                         handleStandingChange(student.id, e.target.value)
                       }
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      disabled={!isEncodingOpen}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400"
                     >
                       <option value="active">Active</option>
                       <option value="dropped">Dropped</option>
@@ -310,6 +332,7 @@ const GradingTable = ({
                   student={student}
                   grades={grades}
                   activeTerm={activeTerm}
+                  isEncodingOpen={isEncodingOpen}
                   handleChange={handleChange}
                   toggleFlagStudent={toggleFlagStudent}
                   handleStandingChange={handleStandingChange}
@@ -325,6 +348,7 @@ const GradingTable = ({
         onClose={() => setShowBulkUpload(false)}
         sectionData={selectedSection}
         systemTerm={systemTerm}
+        isEncodingOpen={isEncodingOpen}
         onUpload={handleBulkUpload}
       />
     </div>

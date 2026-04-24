@@ -1,25 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
+import { programs as availablePrograms } from "../../data/registrarData";
 
-const programs = [
-  "All Programs",
-  "BECE",
-  "BSED English",
-  "BSED Filipino",
-  "BSED Math",
-  "BSED Science",
-  "BSED Social Studies",
-  "BS Civil Eng",
-  "BS Electrical Eng",
-  "BSIT",
-  "BA Comm",
-  "BS Psych",
-  "BS Social Work",
-  "BSPA",
-  "BSA",
-  "BSBA Financial",
-  "BSBA HRM",
-  "BSBA Marketing",
-];
+const programs = ["All Programs", ...availablePrograms];
 
 const SearchWithDropdown = ({ setSelectedProgram }) => {
   const [query, setQuery] = useState("");

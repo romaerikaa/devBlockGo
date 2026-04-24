@@ -1,7 +1,14 @@
 import React from "react";
 import plvlogo from "../../assets/plvlogo.png";
 
-function ChairpersonHeader({ chairpersonData, departmentCount, onLogout }) {
+function ChairpersonHeader({
+  chairpersonData,
+  departmentCount,
+  availableDepartments = [],
+  selectedDepartment = "",
+  onDepartmentChange,
+  onLogout,
+}) {
   return (
     <header className="w-full border-b border-slate-200 bg-[#003366] shadow-sm">
       <div className="flex w-full items-center justify-between px-6 py-4">
@@ -19,11 +26,25 @@ function ChairpersonHeader({ chairpersonData, departmentCount, onLogout }) {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden rounded-xl bg-white/10 px-4 py-2 text-right md:block">
+          <div className="hidden rounded-xl bg-white/10 px-4 py-2 md:block">
             <p className="text-xs text-white/70">Department</p>
-            <p className="text-sm font-semibold text-white">
-              {chairpersonData?.department || "Department"}
-            </p>
+            {availableDepartments.length > 0 ? (
+              <select
+                value={selectedDepartment}
+                onChange={(event) => onDepartmentChange?.(event.target.value)}
+                className="mt-1 min-w-[280px] rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white outline-none"
+              >
+                {availableDepartments.map((department) => (
+                  <option key={department} value={department} className="text-slate-900">
+                    {department}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-sm font-semibold text-white">
+                {chairpersonData?.department || "Department"}
+              </p>
+            )}
           </div>
 
           <div className="hidden rounded-xl bg-white/10 px-4 py-2 text-right md:block">

@@ -4,7 +4,6 @@ function RegistrarSidebar({ activeTab, setActiveTab }) {
   const menuItems = [
   { id: "dashboard", label: "Dashboard" },
   { id: "encoding", label: "Encoding Period" },
-  { id: "assignment", label: "Academic Assignment" },
   { id: "studentlist", label: "Student List Import" },
   { id: "monitoring", label: "Monitoring" },
   { id: "finalization", label: "Grade Finalization" },

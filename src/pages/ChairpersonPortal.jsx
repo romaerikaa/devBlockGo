@@ -4,7 +4,10 @@ import ChairpersonSidebar from "../components/chairperson/ChairpersonSidebar";
 import ChairpersonOverview from "../components/chairperson/ChairpersonOverview";
 import FacultyStatusTable from "../components/chairperson/FacultyStatusTable";
 import SectionReviewPanel from "../components/chairperson/SectionReviewPanel";
+import AcademicAssignment from "../components/chairperson/AcademicAssignment";
+import StudentSectioning from "../components/chairperson/StudentSectioning";
 import { facultyList } from "../data/registrarData";
+import { STUDENT_BATCHES_KEY } from "../utils/studentSectioningHelpers";
 import {
   buildFacultyDirectory,
   buildReviewKey,
@@ -16,20 +19,13 @@ import {
 } from "../utils/chairpersonHelpers";
 
 function ChairpersonPortal({ onLogout, allGrades = {} }) {
-  const chairpersonData = {
-    name: "Elena Marquez",
-    department: "BSIT",
-    schoolYear: "2025-2026",
-    semester: "2nd Semester",
-  };
-  const chairpersonDepartment = chairpersonData.department;
-
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("sectioning");
   const [reviewData, setReviewData] = useState(() => {
     const saved = localStorage.getItem(CHAIRPERSON_REVIEW_KEY);
     return saved ? JSON.parse(saved) : {};
   });
   const [selectedReviewKey, setSelectedReviewKey] = useState("");
+  const [studentDataVersion, setStudentDataVersion] = useState(0);
 
   useEffect(() => {
     localStorage.setItem(CHAIRPERSON_REVIEW_KEY, JSON.stringify(reviewData));
@@ -43,7 +39,48 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
   const importedStudents = useMemo(() => {
     const saved = localStorage.getItem("studentMasterlist");
     return saved ? JSON.parse(saved) : [];
-  }, []);
+  }, [studentDataVersion]);
+
+  const forwardedBatches = useMemo(() => {
+    const saved = localStorage.getItem(STUDENT_BATCHES_KEY);
+    return saved ? JSON.parse(saved) : [];
+  }, [studentDataVersion]);
+
+  const availableDepartments = useMemo(() => {
+    const departments = new Set();
+
+    forwardedBatches.forEach((batch) => {
+      if ((batch.status || "Forwarded") === "Forwarded" && batch.program) {
+        departments.add(batch.program);
+      }
+    });
+
+    assignments.forEach((assignment) => {
+      if (assignment.program) {
+        departments.add(assignment.program);
+      }
+    });
+
+    return Array.from(departments);
+  }, [assignments, forwardedBatches]);
+
+  const [selectedDepartment, setSelectedDepartment] = useState("");
+
+  useEffect(() => {
+    if (!availableDepartments.length) return;
+
+    if (!selectedDepartment || !availableDepartments.includes(selectedDepartment)) {
+      setSelectedDepartment(availableDepartments[0]);
+    }
+  }, [availableDepartments, selectedDepartment]);
+
+  const chairpersonData = {
+    name: "Elena Marquez",
+    department: selectedDepartment || "No Department Assigned",
+    schoolYear: "2025",
+    semester: "2nd Semester",
+  };
+  const chairpersonDepartment = selectedDepartment;
 
   const activeGradeKey = chairpersonData.semester;
   const activeTerm = chairpersonData.semester.toLowerCase().includes("1st")
@@ -157,6 +194,10 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
   };
 
   const filteredRows = useMemo(() => {
+    if (activeTab === "assignment") {
+      return monitoredRows;
+    }
+
     if (activeTab === "forReview") {
       return monitoredRows.filter((row) => row.reviewStatus === "submitted");
     }
@@ -181,6 +222,9 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
       <ChairpersonHeader
         chairpersonData={chairpersonData}
         departmentCount={departmentFaculty.length}
+        availableDepartments={availableDepartments}
+        selectedDepartment={selectedDepartment}
+        onDepartmentChange={setSelectedDepartment}
         onLogout={onLogout}
       />
 
@@ -189,28 +233,59 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
           <ChairpersonSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
           <main className="flex-1 space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-[#003366]">Chairperson Review Dashboard</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Monitor faculty encoding progress, validate section grades, return discrepancies to faculty, and approve submissions before they move to the registrar.
-              </p>
-            </div>
+            {activeTab === "sectioning" ? (
+              <StudentSectioning
+                chairpersonDepartment={chairpersonDepartment}
+                onSectioningSaved={() =>
+                  setStudentDataVersion((current) => current + 1)
+                }
+              />
+            ) : activeTab === "assignment" ? (
+              <>
+                <div>
+                  <h2 className="text-2xl font-bold text-[#003366]">
+                    Academic Assignment
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Assign faculty teaching loads and section ownership before
+                    grade encoding begins.
+                  </p>
+                </div>
 
-            <ChairpersonOverview metrics={metrics} />
+                <AcademicAssignment />
+              </>
+            ) : (
+              <>
+                <div>
+                  <h2 className="text-2xl font-bold text-[#003366]">
+                    Chairperson Review Dashboard
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Monitor faculty encoding progress, validate section grades,
+                    return discrepancies to faculty, and approve submissions
+                    before they move to the registrar.
+                  </p>
+                </div>
 
-            <FacultyStatusTable
-              rows={filteredRows}
-              selectedReviewKey={selectedReviewKey}
-              onSelectSection={(row) => setSelectedReviewKey(row.reviewKey)}
-            />
+                <ChairpersonOverview metrics={metrics} />
 
-            <SectionReviewPanel
-              selectedSection={selectedSection}
-              activeTerm={activeTerm}
-              onSendBack={(note) => updateReviewStatus("returned", note)}
-              onApprove={(note) => updateReviewStatus("approved", note)}
-              onSubmitToRegistrar={(note) => updateReviewStatus("forwarded", note)}
-            />
+                <FacultyStatusTable
+                  rows={filteredRows}
+                  selectedReviewKey={selectedReviewKey}
+                  onSelectSection={(row) => setSelectedReviewKey(row.reviewKey)}
+                />
+
+                <SectionReviewPanel
+                  selectedSection={selectedSection}
+                  activeTerm={activeTerm}
+                  onSendBack={(note) => updateReviewStatus("returned", note)}
+                  onApprove={(note) => updateReviewStatus("approved", note)}
+                  onSubmitToRegistrar={(note) =>
+                    updateReviewStatus("forwarded", note)
+                  }
+                />
+              </>
+            )}
           </main>
         </div>
       </div>

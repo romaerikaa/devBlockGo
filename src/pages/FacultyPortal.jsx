@@ -71,7 +71,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
           section.section === assign.sectionName &&
           section.program === assign.program &&
           section.schoolYear === assign.schoolYear &&
-          section.semester === assign.semester
+          (!section.semester || !assign.semester || section.semester === assign.semester)
       );
 
       acc[assign.sectionName] = {
@@ -227,6 +227,12 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
       ? Math.ceil((ENCODING_END - now) / (1000 * 60 * 60 * 24))
       : 0;
 
+  const isEncodingOpen =
+    !!ENCODING_START &&
+    !!ENCODING_END &&
+    now >= ENCODING_START &&
+    now <= ENCODING_END;
+
   const formatDate = (date) => {
     if (!date) return "No schedule set";
 
@@ -307,6 +313,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
           onBack={() => setSelectedSection(null)}
           systemTerm={systemSettings.term}
           activeGradeKey={activeGradeKey}
+          isEncodingOpen={isEncodingOpen}
           grades={
             allGrades?.[activeGradeKey]?.[selectedSection.sectionName] || {}
           }

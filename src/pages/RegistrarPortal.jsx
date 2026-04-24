@@ -4,7 +4,6 @@ import RegistrarSidebar from "../components/registrar/RegistrarSidebar";
 import RegistrarDashboard from "../components/registrar/RegistrarDashboard";
 import FacultyMonitoring from "../components/registrar/FacultyMonitoring";
 import EncodingPeriod from "../components/registrar/EncodingPeriod";
-import AcademicAssignment from "../components/registrar/AcademicAssignment";
 import StudentListImport from "../components/registrar/StudentListImport";
 
 function RegistrarPortal({ onLogout, onResetEncodingSeason }) {
@@ -24,8 +23,6 @@ function RegistrarPortal({ onLogout, onResetEncodingSeason }) {
         return "Encoding Period";
       case "studentlist":
         return "Student List Import";
-      case "assignment":
-        return "Academic Assignment";
       case "monitoring":
         return "Monitoring";
       case "finalization":
@@ -43,10 +40,8 @@ function RegistrarPortal({ onLogout, onResetEncodingSeason }) {
         return "Overview of registrar activities and grade encoding progress.";
       case "encoding":
         return "Manage the opening and closing of the encoding period.";
-        case "studentlist":
-           return "Import enrolled student records and organize them into section lists.";
-      case "assignment":
-        return "Assign students and class sections to the appropriate faculty members.";
+      case "studentlist":
+        return "Upload department-based student ID files and submit them to chairpersons for sectioning.";
       case "monitoring":
         return "Track faculty encoding progress and monitor submission status in real time.";
       case "finalization":
@@ -69,10 +64,6 @@ function RegistrarPortal({ onLogout, onResetEncodingSeason }) {
 
   if (activeTab === "studentlist") {
   return <StudentListImport />;
-  }
-
-  if (activeTab === "assignment") {
-    return <AcademicAssignment />;
   }
 
   if (activeTab === "monitoring") {

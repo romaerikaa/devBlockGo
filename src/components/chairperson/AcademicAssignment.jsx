@@ -3,7 +3,6 @@ import { facultyList, sections as sectionList } from "../../data/registrarData";
 
 function AcademicAssignment() {
   const [selectedSchoolYear, setSelectedSchoolYear] = useState("");
-  const [selectedSemester, setSelectedSemester] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("");
   const [selectedFacultyId, setSelectedFacultyId] = useState("");
   const [selectedSectionName, setSelectedSectionName] = useState("");
@@ -22,22 +21,15 @@ function AcademicAssignment() {
 
   const schoolYears = [
     ...new Set([
-      ...sectionList.map((s) => s.schoolYear),
-      ...studentSections.map((s) => s.schoolYear),
-    ]),
-  ];
-
-  const semesters = [
-    ...new Set([
-      ...sectionList.map((s) => s.semester),
-      ...studentSections.map((s) => s.semester),
+      ...sectionList.map((section) => section.schoolYear),
+      ...studentSections.map((section) => section.schoolYear),
     ]),
   ];
 
   const programs = [
     ...new Set([
-      ...sectionList.map((s) => s.program),
-      ...studentSections.map((s) => s.program),
+      ...sectionList.map((section) => section.program),
+      ...studentSections.map((section) => section.program),
     ]),
   ];
 
@@ -48,8 +40,7 @@ function AcademicAssignment() {
   const filteredSections = studentSections.filter(
     (section) =>
       section.program === selectedProgram &&
-      section.schoolYear === selectedSchoolYear &&
-      section.semester === selectedSemester
+      section.schoolYear === selectedSchoolYear
   );
 
   const selectedFaculty = facultyList.find(
@@ -63,7 +54,6 @@ function AcademicAssignment() {
   const handleAssign = () => {
     if (
       !selectedSchoolYear ||
-      !selectedSemester ||
       !selectedProgram ||
       !selectedFacultyId ||
       !selectedSectionName ||
@@ -86,7 +76,6 @@ function AcademicAssignment() {
         item.facultyId === Number(selectedFacultyId) &&
         item.sectionName === selectedSectionName &&
         item.schoolYear === selectedSchoolYear &&
-        item.semester === selectedSemester &&
         item.subjectCode.toLowerCase() === subjectCode.trim().toLowerCase()
     );
 
@@ -107,7 +96,7 @@ function AcademicAssignment() {
       schedule: schedule.trim(),
       day: day.trim(),
       schoolYear: selectedSchoolYear,
-      semester: selectedSemester,
+      semester: "",
     };
 
     const updatedAssignments = [...savedAssignments, newAssignment];
@@ -120,7 +109,6 @@ function AcademicAssignment() {
     alert("Faculty assignment saved successfully.");
 
     setSelectedSchoolYear("");
-    setSelectedSemester("");
     setSelectedProgram("");
     setSelectedFacultyId("");
     setSelectedSectionName("");
@@ -148,53 +136,29 @@ function AcademicAssignment() {
           Academic Assignment
         </h3>
         <p className="mt-1 text-sm text-slate-500">
-          Assign a faculty member to a section together with the subject they will handle.
+          Assign a faculty member to a section together with the subject they
+          will handle.
         </p>
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
-              School Year
+              Batch Year
             </label>
             <select
               value={selectedSchoolYear}
               onChange={(e) => {
                 setSelectedSchoolYear(e.target.value);
-                setSelectedSemester("");
                 setSelectedProgram("");
                 setSelectedFacultyId("");
                 setSelectedSectionName("");
               }}
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
             >
-              <option value="">Choose school year</option>
+              <option value="">Choose batch year</option>
               {schoolYears.map((schoolYear) => (
                 <option key={schoolYear} value={schoolYear}>
                   {schoolYear}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Semester
-            </label>
-            <select
-              value={selectedSemester}
-              onChange={(e) => {
-                setSelectedSemester(e.target.value);
-                setSelectedProgram("");
-                setSelectedFacultyId("");
-                setSelectedSectionName("");
-              }}
-              disabled={!selectedSchoolYear}
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm disabled:bg-slate-100"
-            >
-              <option value="">Choose semester</option>
-              {semesters.map((semester) => (
-                <option key={semester} value={semester}>
-                  {semester}
                 </option>
               ))}
             </select>
@@ -211,7 +175,7 @@ function AcademicAssignment() {
                 setSelectedFacultyId("");
                 setSelectedSectionName("");
               }}
-              disabled={!selectedSchoolYear || !selectedSemester}
+              disabled={!selectedSchoolYear}
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm disabled:bg-slate-100"
             >
               <option value="">Choose program</option>
@@ -314,7 +278,12 @@ function AcademicAssignment() {
           </div>
         </div>
 
-        {(selectedFaculty || selectedSection || subjectCode || subjectTitle || schedule || day) && (
+        {(selectedFaculty ||
+          selectedSection ||
+          subjectCode ||
+          subjectTitle ||
+          schedule ||
+          day) && (
           <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
             <div className="rounded-xl bg-slate-50 p-4">
               <p className="text-sm text-slate-500">Faculty</p>
@@ -368,9 +337,7 @@ function AcademicAssignment() {
             <div className="rounded-xl bg-slate-50 p-4 md:col-span-2 xl:col-span-6">
               <p className="text-sm text-slate-500">Academic Term</p>
               <p className="mt-1 font-semibold text-slate-800">
-                {selectedSchoolYear && selectedSemester
-                  ? `${selectedSchoolYear} | ${selectedSemester}`
-                  : "--"}
+                {selectedSchoolYear || "--"}
               </p>
             </div>
           </div>
@@ -389,7 +356,8 @@ function AcademicAssignment() {
           Current Assignments
         </h3>
         <p className="mt-1 text-sm text-slate-500">
-          These assignments will be the basis of what appears in the faculty portal.
+          These assignments will be the basis of what appears in the faculty
+          portal.
         </p>
 
         <div className="mt-4 overflow-x-auto">
@@ -404,8 +372,7 @@ function AcademicAssignment() {
                 <th className="px-4 py-3 text-left text-sm">Subject Title</th>
                 <th className="px-4 py-3 text-left text-sm">Schedule</th>
                 <th className="px-4 py-3 text-left text-sm">Day</th>
-                <th className="px-4 py-3 text-left text-sm">School Year</th>
-                <th className="px-4 py-3 text-left text-sm">Semester</th>
+                <th className="px-4 py-3 text-left text-sm">Batch Year</th>
                 <th className="px-4 py-3 text-left text-sm">Action</th>
               </tr>
             </thead>
@@ -423,7 +390,6 @@ function AcademicAssignment() {
                     <td className="px-4 py-3">{item.schedule}</td>
                     <td className="px-4 py-3">{item.day}</td>
                     <td className="px-4 py-3">{item.schoolYear}</td>
-                    <td className="px-4 py-3">{item.semester}</td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => handleDeleteAssignment(item.id)}
@@ -436,7 +402,7 @@ function AcademicAssignment() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="11" className="py-6 text-center text-slate-500">
+                  <td colSpan="10" className="py-6 text-center text-slate-500">
                     No assignments yet.
                   </td>
                 </tr>
