@@ -5,9 +5,17 @@ import {
   parseStudentIdSpreadsheet,
 } from "../../utils/studentSectioningHelpers";
 
-function AcademicAssignment() {
-  const [selectedSchoolYear, setSelectedSchoolYear] = useState("");
-  const [selectedProgram, setSelectedProgram] = useState("");
+const SEMESTER_OPTIONS = ["1st Semester", "2nd Semester", "Summer"];
+const DAY_OPTIONS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+function AcademicAssignment({ chairpersonDepartment = "" }) {
   const [selectedFacultyId, setSelectedFacultyId] = useState("");
   const [selectedSectionName, setSelectedSectionName] = useState("");
   const [subjectCode, setSubjectCode] = useState("");
@@ -26,19 +34,16 @@ function AcademicAssignment() {
   const studentSections =
     JSON.parse(localStorage.getItem("studentSections")) || [];
 
+  const selectedProgram = chairpersonDepartment;
   const schoolYears = [
-    ...new Set([
-      ...sectionList.map((section) => section.schoolYear),
-      ...studentSections.map((section) => section.schoolYear),
-    ]),
-  ];
-
-  const programs = [
-    ...new Set([
-      ...sectionList.map((section) => section.program),
-      ...studentSections.map((section) => section.program),
-    ]),
-  ];
+    ...new Set(
+      [...sectionList, ...studentSections]
+        .filter((section) => section.program === selectedProgram)
+        .map((section) => section.schoolYear)
+        .filter(Boolean)
+    ),
+  ].sort((left, right) => String(right).localeCompare(String(left)));
+  const selectedSchoolYear = schoolYears[0] || "";
 
   const filteredFaculty = facultyList.filter(
     (faculty) => faculty.program === selectedProgram
@@ -59,6 +64,7 @@ function AcademicAssignment() {
   );
 
   const selectedSectionStudents = selectedSection?.students || [];
+  const selectedDaysText = scheduleDay;
 
   const resetForm = () => {
     setSelectedFacultyId("");
@@ -100,7 +106,7 @@ function AcademicAssignment() {
       !units.trim() ||
       !semester.trim() ||
       !scheduleTime.trim() ||
-      !scheduleDay.trim()
+      !selectedDaysText
     ) {
       alert("Please complete all fields.");
       return;
@@ -108,6 +114,11 @@ function AcademicAssignment() {
 
     if (!selectedSection) {
       alert("Selected section was not found.");
+      return;
+    }
+
+    if (!selectedFaculty) {
+      alert("Selected faculty was not found.");
       return;
     }
 
@@ -165,7 +176,7 @@ function AcademicAssignment() {
         subjectTitle: subjectTitle.trim(),
         units: units.trim(),
         schedule: scheduleTime.trim(),
-        day: scheduleDay.trim(),
+        day: selectedDaysText,
         schoolYear: selectedSchoolYear,
         semester: semester.trim(),
         rosterFileName: selectedFile.name,
@@ -213,50 +224,6 @@ function AcademicAssignment() {
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
-              Batch Year
-            </label>
-            <select
-              value={selectedSchoolYear}
-              onChange={(e) => {
-                setSelectedSchoolYear(e.target.value);
-                setSelectedProgram("");
-                resetForm();
-              }}
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
-            >
-              <option value="">Choose batch year</option>
-              {schoolYears.map((schoolYear) => (
-                <option key={schoolYear} value={schoolYear}>
-                  {schoolYear}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Program
-            </label>
-            <select
-              value={selectedProgram}
-              onChange={(e) => {
-                setSelectedProgram(e.target.value);
-                resetForm();
-              }}
-              disabled={!selectedSchoolYear}
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm disabled:bg-slate-100"
-            >
-              <option value="">Choose program</option>
-              {programs.map((program) => (
-                <option key={program} value={program}>
-                  {program}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
               Faculty
             </label>
             <select
@@ -281,7 +248,7 @@ function AcademicAssignment() {
             <select
               value={selectedSectionName}
               onChange={(e) => setSelectedSectionName(e.target.value)}
-              disabled={!selectedProgram}
+              disabled={!selectedProgram || !selectedSchoolYear}
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm disabled:bg-slate-100"
             >
               <option value="">Choose section</option>
@@ -311,15 +278,16 @@ function AcademicAssignment() {
               Total Units
             </label>
             <input
-              type="text"
+              type="number"
+              min="1"
               value={units}
               onChange={(e) => setUnits(e.target.value)}
               placeholder="e.g. 3"
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
+              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm xl:max-w-32"
             />
           </div>
 
-          <div className="md:col-span-2 xl:col-span-3">
+          <div className="md:col-span-2 xl:col-span-2">
             <label className="mb-2 block text-sm font-medium text-slate-700">
               Subject Title
             </label>
@@ -336,13 +304,18 @@ function AcademicAssignment() {
             <label className="mb-2 block text-sm font-medium text-slate-700">
               Semester
             </label>
-            <input
-              type="text"
+            <select
               value={semester}
               onChange={(e) => setSemester(e.target.value)}
-              placeholder="e.g. 1st Semester"
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
-            />
+            >
+              <option value="">Choose semester</option>
+              {SEMESTER_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -362,13 +335,18 @@ function AcademicAssignment() {
             <label className="mb-2 block text-sm font-medium text-slate-700">
               Day
             </label>
-            <input
-              type="text"
+            <select
               value={scheduleDay}
               onChange={(e) => setScheduleDay(e.target.value)}
-              placeholder="e.g. Monday and Wednesday"
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
-            />
+            >
+              <option value="">Choose day</option>
+              {DAY_OPTIONS.map((day) => (
+                <option key={day} value={day}>
+                  {day}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="md:col-span-2 xl:col-span-3">
@@ -406,7 +384,7 @@ function AcademicAssignment() {
           units ||
           semester ||
           scheduleTime ||
-          scheduleDay) && (
+          selectedDaysText) && (
           <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
             <div className="rounded-xl bg-slate-50 p-4">
               <p className="text-sm text-slate-500">Faculty</p>
@@ -446,7 +424,7 @@ function AcademicAssignment() {
             <div className="rounded-xl bg-slate-50 p-4">
               <p className="text-sm text-slate-500">Day</p>
               <p className="mt-1 font-semibold text-slate-800">
-                {scheduleDay || "--"}
+                {selectedDaysText || "--"}
               </p>
             </div>
 
@@ -502,7 +480,6 @@ function AcademicAssignment() {
             <thead>
               <tr className="bg-[#003366] text-white">
                 <th className="px-4 py-3 text-left text-sm">Faculty</th>
-                <th className="px-4 py-3 text-left text-sm">Program</th>
                 <th className="px-4 py-3 text-left text-sm">Section</th>
                 <th className="px-4 py-3 text-left text-sm">Students</th>
                 <th className="px-4 py-3 text-left text-sm">CSV File</th>
@@ -511,7 +488,6 @@ function AcademicAssignment() {
                 <th className="px-4 py-3 text-left text-sm">Semester</th>
                 <th className="px-4 py-3 text-left text-sm">Time</th>
                 <th className="px-4 py-3 text-left text-sm">Day</th>
-                <th className="px-4 py-3 text-left text-sm">Batch Year</th>
                 <th className="px-4 py-3 text-left text-sm">Action</th>
               </tr>
             </thead>
@@ -521,7 +497,6 @@ function AcademicAssignment() {
                 assignmentRows.map((item) => (
                   <tr key={item.id} className="border-b">
                     <td className="px-4 py-3">{item.facultyName}</td>
-                    <td className="px-4 py-3">{item.program}</td>
                     <td className="px-4 py-3">{item.sectionName}</td>
                     <td className="px-4 py-3">
                       {item.rosterStudents?.length || 0}
@@ -534,7 +509,6 @@ function AcademicAssignment() {
                     <td className="px-4 py-3">{item.semester || "--"}</td>
                     <td className="px-4 py-3">{item.schedule}</td>
                     <td className="px-4 py-3">{item.day}</td>
-                    <td className="px-4 py-3">{item.schoolYear}</td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => handleDeleteAssignment(item.id)}
@@ -547,7 +521,7 @@ function AcademicAssignment() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="12" className="py-6 text-center text-slate-500">
+                  <td colSpan="10" className="py-6 text-center text-slate-500">
                     No uploaded section CSVs yet.
                   </td>
                 </tr>

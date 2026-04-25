@@ -263,7 +263,7 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
                   </p>
                 </div>
 
-                <AcademicAssignment />
+                <AcademicAssignment chairpersonDepartment={chairpersonDepartment} />
               </>
             ) : (
               <>
