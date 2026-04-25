@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import {
   AVAILABLE_SECTION_CODES,
   STUDENT_BATCHES_KEY,
+  downloadStudentCsvFile,
   syncSectionedStudentsToStorage,
 } from "../../utils/studentSectioningHelpers";
 
@@ -32,6 +33,34 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
     departmentBatches.find((batch) => batch.key === selectedBatchKey) || null;
 
   const sectionPlans = selectedBatch?.sectionPlans || [];
+
+  const handleDownloadReceivedCsv = () => {
+    if (!selectedBatch) return;
+
+    downloadStudentCsvFile(
+      selectedBatch.students || [],
+      selectedBatch.fileName ||
+        `${selectedBatch.program}-${selectedBatch.batchYear}-received.csv`
+    );
+  };
+
+  const handleDownloadSectionCsv = (sectionCode) => {
+    if (!selectedBatch) return;
+
+    const sectionStudents = (selectedBatch.students || []).filter(
+      (student) => student.sectionCode === sectionCode
+    );
+
+    if (!sectionStudents.length) {
+      alert("No students are assigned to this section yet.");
+      return;
+    }
+
+    downloadStudentCsvFile(
+      sectionStudents,
+      `${selectedBatch.program}-${selectedBatch.batchYear}-${sectionCode}.csv`
+    );
+  };
 
   const updateSelectedBatch = (updater) => {
     setBatches((prev) =>
@@ -185,7 +214,7 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
     alert("Student sectioning saved successfully.");
   };
 
-  const filteredStudents = useMemo(() => {
+  const filteredStudents = (() => {
     if (!selectedBatch) return [];
 
     const searchValue = studentSearch.trim().toLowerCase();
@@ -201,7 +230,7 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
         fullName.includes(searchValue)
       );
     });
-  }, [selectedBatch, studentSearch]);
+  })();
 
   const totalStudents = selectedBatch?.students?.length || 0;
   const totalSectionedStudents = selectedBatch
@@ -215,20 +244,18 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
   );
   const remainingStudents = Math.max(totalStudents - totalSectionedStudents, 0);
 
-  const sectionCounts = useMemo(() => {
-    if (!selectedBatch) return [];
+  const sectionCounts = selectedBatch
+    ? sectionPlans.map((section) => {
+        const assigned = (selectedBatch.students || []).filter(
+          (student) => student.sectionCode === section.sectionCode
+        ).length;
 
-    return sectionPlans.map((section) => {
-      const assigned = (selectedBatch.students || []).filter(
-        (student) => student.sectionCode === section.sectionCode
-      ).length;
-
-      return {
-        ...section,
-        assigned,
-      };
-    });
-  }, [selectedBatch, sectionPlans]);
+        return {
+          ...section,
+          assigned,
+        };
+      })
+    : [];
 
   const availableSectionOptions = AVAILABLE_SECTION_CODES.filter(
     (sectionCode) =>
@@ -324,6 +351,51 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
               </div>
 
               <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-[#003366]">
+                      Received CSV
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      The registrar-submitted list stays available here as CSV
+                      while you prepare section CSVs for faculty.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadReceivedCsv}
+                    className="rounded-2xl border border-[#003366] px-5 py-3 text-sm font-semibold text-[#003366] transition hover:bg-[#003366] hover:text-white"
+                  >
+                    Download Received CSV
+                  </button>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="rounded-2xl bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">Original File</p>
+                    <p className="mt-1 font-semibold text-slate-800">
+                      {selectedBatch.fileName || "--"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">Forwarded At</p>
+                    <p className="mt-1 font-semibold text-slate-800">
+                      {new Date(selectedBatch.submittedAt).toLocaleString("en-US")}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">Total Students</p>
+                    <p className="mt-1 font-semibold text-slate-800">
+                      {totalStudents}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h3 className="text-xl font-bold text-[#003366]">
@@ -415,6 +487,15 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
                               {section.assigned} / {section.capacity}
                             </td>
                             <td className="px-4 py-3">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleDownloadSectionCsv(section.sectionCode)
+                                }
+                                className="mr-2 rounded-lg border border-[#003366]/20 px-3 py-1 text-sm font-medium text-[#003366] hover:bg-[#003366]/5"
+                              >
+                                Export CSV
+                              </button>
                               <button
                                 type="button"
                                 onClick={() =>

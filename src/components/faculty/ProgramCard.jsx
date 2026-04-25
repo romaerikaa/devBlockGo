@@ -78,7 +78,7 @@ const ProgramCard = ({
 
       <div className="mb-4 flex justify-between text-sm text-slate-500">
         <span>Students: {totalStudents}</span>
-        <span>SY: 2025-2026</span>
+        <span>SY: {sectionData.schoolYear || "--"}</span>
         <span>{sectionData.semester}</span>
       </div>
 

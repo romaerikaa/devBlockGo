@@ -3,6 +3,7 @@ import { programs } from "../../data/registrarData";
 import {
   STUDENT_BATCHES_KEY,
   STUDENT_SUBMISSION_LOGS_KEY,
+  buildStudentCsvContent,
   parseStudentIdSpreadsheet,
   syncSectionedStudentsToStorage,
 } from "../../utils/studentSectioningHelpers";
@@ -153,6 +154,7 @@ function StudentListImport() {
         fileName: selectedFile.name,
         submittedAt,
         status: "Forwarded",
+        receivedCsvContent: buildStudentCsvContent(parsedStudents),
         students: parsedStudents,
       };
 

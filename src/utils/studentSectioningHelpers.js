@@ -22,6 +22,16 @@ export const AVAILABLE_SECTION_CODES = [
 const normalizeHeader = (value = "") =>
   String(value).trim().toLowerCase().replace(/\s+/g, " ");
 
+const escapeCsvValue = (value = "") => {
+  const stringValue = String(value ?? "");
+
+  if (/[",\n]/.test(stringValue)) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+
+  return stringValue;
+};
+
 export const parseStudentIdSpreadsheet = (text = "") => {
   const lines = text
     .split(/\r?\n/)
@@ -70,6 +80,44 @@ export const parseStudentIdSpreadsheet = (text = "") => {
         student.firstName &&
         student.middleInitial
     );
+};
+
+export const buildStudentCsvContent = (students = []) => {
+  const header = [
+    "Student ID",
+    "Sex",
+    "Last Name",
+    "First Name",
+    "Middle Initial",
+  ];
+
+  const rows = students.map((student) =>
+    [
+      student.studentId,
+      student.sex,
+      student.lastName,
+      student.firstName,
+      student.middleInitial,
+    ]
+      .map(escapeCsvValue)
+      .join(",")
+  );
+
+  return [header.join(","), ...rows].join("\n");
+};
+
+export const downloadStudentCsvFile = (students = [], fileName = "students.csv") => {
+  const csvContent = buildStudentCsvContent(students);
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.setAttribute("download", fileName);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 
 export const buildStudentMasterlistFromBatches = (batches = []) =>

@@ -22,6 +22,7 @@ const GradingTable = ({
 }) => {
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const activeTerm = systemTerm;
+  const gradeStorageKey = selectedSection.assignmentKey || selectedSection.sectionName;
 
   const handleChange = (studentId, field, value) => {
     const formattedValue = ["INC", "UD", "D", "W"].includes(value.toUpperCase())
@@ -32,10 +33,10 @@ const GradingTable = ({
       ...prev,
       [activeGradeKey]: {
         ...(prev[activeGradeKey] || {}),
-        [selectedSection.sectionName]: {
-          ...(prev[activeGradeKey]?.[selectedSection.sectionName] || {}),
+        [gradeStorageKey]: {
+          ...(prev[activeGradeKey]?.[gradeStorageKey] || {}),
           [studentId]: {
-            ...(prev[activeGradeKey]?.[selectedSection.sectionName]?.[studentId] || {}),
+            ...(prev[activeGradeKey]?.[gradeStorageKey]?.[studentId] || {}),
             [field]: formattedValue,
           },
         },
@@ -48,13 +49,12 @@ const GradingTable = ({
       ...prev,
       [activeGradeKey]: {
         ...(prev[activeGradeKey] || {}),
-        [selectedSection.sectionName]: {
-          ...(prev[activeGradeKey]?.[selectedSection.sectionName] || {}),
+        [gradeStorageKey]: {
+          ...(prev[activeGradeKey]?.[gradeStorageKey] || {}),
           [studentId]: {
-            ...(prev[activeGradeKey]?.[selectedSection.sectionName]?.[studentId] || {}),
+            ...(prev[activeGradeKey]?.[gradeStorageKey]?.[studentId] || {}),
             flagged:
-              !prev[activeGradeKey]?.[selectedSection.sectionName]?.[studentId]
-                ?.flagged,
+              !prev[activeGradeKey]?.[gradeStorageKey]?.[studentId]?.flagged,
           },
         },
       },
@@ -66,10 +66,10 @@ const GradingTable = ({
       ...prev,
       [activeGradeKey]: {
         ...(prev[activeGradeKey] || {}),
-        [selectedSection.sectionName]: {
-          ...(prev[activeGradeKey]?.[selectedSection.sectionName] || {}),
+        [gradeStorageKey]: {
+          ...(prev[activeGradeKey]?.[gradeStorageKey] || {}),
           [studentId]: {
-            ...(prev[activeGradeKey]?.[selectedSection.sectionName]?.[studentId] || {}),
+            ...(prev[activeGradeKey]?.[gradeStorageKey]?.[studentId] || {}),
             standing: value,
           },
         },
@@ -82,11 +82,11 @@ const GradingTable = ({
       ...prev,
       [activeGradeKey]: {
         ...(prev[activeGradeKey] || {}),
-        [selectedSection.sectionName]: {
-          ...(prev[activeGradeKey]?.[selectedSection.sectionName] || {}),
+        [gradeStorageKey]: {
+          ...(prev[activeGradeKey]?.[gradeStorageKey] || {}),
           ...Object.keys(data).reduce((acc, studentId) => {
             acc[studentId] = {
-              ...(prev[activeGradeKey]?.[selectedSection.sectionName]?.[studentId] || {}),
+              ...(prev[activeGradeKey]?.[gradeStorageKey]?.[studentId] || {}),
               ...data[studentId],
             };
             return acc;

@@ -11,10 +11,13 @@ function FacultyStatusTable({ rows, selectedReviewKey, onSelectSection }) {
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="text-xl font-bold text-[#003366]">Faculty Encoding Monitoring</h3>
+          <h3 className="text-xl font-bold text-[#003366]">
+            Faculty Encoding Monitoring
+          </h3>
           <p className="mt-1 text-sm text-slate-500">
-            Track who has not encoded yet, who already submitted to the chairperson,
-            and which sections are approved or forwarded to the registrar.
+            Track who has not encoded yet, who already submitted to the
+            chairperson, and which sections are approved or forwarded to the
+            registrar.
           </p>
         </div>
       </div>
@@ -28,7 +31,9 @@ function FacultyStatusTable({ rows, selectedReviewKey, onSelectSection }) {
               <th className="px-4 py-3 text-left text-sm">Section</th>
               <th className="px-4 py-3 text-left text-sm">Encoding</th>
               <th className="px-4 py-3 text-left text-sm">Faculty Status</th>
-              <th className="px-4 py-3 text-left text-sm">Chairperson Review</th>
+              <th className="px-4 py-3 text-left text-sm">
+                Chairperson Review
+              </th>
               <th className="px-4 py-3 text-left text-sm">Workflow State</th>
               <th className="px-4 py-3 text-left text-sm">Action</th>
             </tr>
@@ -45,20 +50,29 @@ function FacultyStatusTable({ rows, selectedReviewKey, onSelectSection }) {
                     className={`border-b ${isActive ? "bg-blue-50" : "bg-white"}`}
                   >
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-slate-800">{row.facultyName}</p>
-                      <p className="text-xs text-slate-500">Faculty ID: {row.facultyId}</p>
+                      <p className="font-semibold text-slate-800">
+                        {row.facultyName}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Faculty ID: {row.facultyId}
+                      </p>
                     </td>
                     <td className="px-4 py-3">{row.department}</td>
                     <td className="px-4 py-3">
-                      <p className="font-medium text-slate-800">{row.sectionName}</p>
+                      <p className="font-medium text-slate-800">
+                        {row.sectionName}
+                      </p>
                       <p className="text-xs text-slate-500">
-                        {row.schoolYear} • {row.semester}
+                        {row.subjectCode} | {row.schoolYear} | {row.semester}
                       </p>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-slate-800">{row.progress}% complete</p>
+                      <p className="font-semibold text-slate-800">
+                        {row.progress}% complete
+                      </p>
                       <p className="text-xs text-slate-500">
-                        {row.encodedCount} of {row.totalStudents} students encoded
+                        {row.encodedCount} of {row.totalStudents} students
+                        encoded
                       </p>
                     </td>
                     <td className="px-4 py-3">

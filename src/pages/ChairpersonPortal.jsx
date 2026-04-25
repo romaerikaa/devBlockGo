@@ -9,6 +9,7 @@ import StudentSectioning from "../components/chairperson/StudentSectioning";
 import { facultyList } from "../data/registrarData";
 import { STUDENT_BATCHES_KEY } from "../utils/studentSectioningHelpers";
 import {
+  buildAssignmentStorageKey,
   buildFacultyDirectory,
   buildReviewKey,
   CHAIRPERSON_REVIEW_KEY,
@@ -25,7 +26,7 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
     return saved ? JSON.parse(saved) : {};
   });
   const [selectedReviewKey, setSelectedReviewKey] = useState("");
-  const [studentDataVersion, setStudentDataVersion] = useState(0);
+  const [, setStudentDataVersion] = useState(0);
 
   useEffect(() => {
     localStorage.setItem(CHAIRPERSON_REVIEW_KEY, JSON.stringify(reviewData));
@@ -36,15 +37,15 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
     return saved ? JSON.parse(saved) : [];
   }, []);
 
-  const importedStudents = useMemo(() => {
+  const importedStudents = (() => {
     const saved = localStorage.getItem("studentMasterlist");
     return saved ? JSON.parse(saved) : [];
-  }, [studentDataVersion]);
+  })();
 
-  const forwardedBatches = useMemo(() => {
+  const forwardedBatches = (() => {
     const saved = localStorage.getItem(STUDENT_BATCHES_KEY);
     return saved ? JSON.parse(saved) : [];
-  }, [studentDataVersion]);
+  })();
 
   const availableDepartments = useMemo(() => {
     const departments = new Set();
@@ -65,22 +66,18 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
   }, [assignments, forwardedBatches]);
 
   const [selectedDepartment, setSelectedDepartment] = useState("");
-
-  useEffect(() => {
-    if (!availableDepartments.length) return;
-
-    if (!selectedDepartment || !availableDepartments.includes(selectedDepartment)) {
-      setSelectedDepartment(availableDepartments[0]);
-    }
-  }, [availableDepartments, selectedDepartment]);
+  const resolvedSelectedDepartment =
+    selectedDepartment && availableDepartments.includes(selectedDepartment)
+      ? selectedDepartment
+      : availableDepartments[0] || "";
 
   const chairpersonData = {
     name: "Elena Marquez",
-    department: selectedDepartment || "No Department Assigned",
+    department: resolvedSelectedDepartment || "No Department Assigned",
     schoolYear: "2025",
     semester: "2nd Semester",
   };
-  const chairpersonDepartment = selectedDepartment;
+  const chairpersonDepartment = resolvedSelectedDepartment;
 
   const activeGradeKey = chairpersonData.semester;
   const activeTerm = chairpersonData.semester.toLowerCase().includes("1st")
@@ -101,12 +98,13 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
   const monitoredRows = useMemo(() => {
     return departmentFaculty.flatMap((faculty) => {
       return faculty.sections.map((assignment) => {
-        const reviewKey = buildReviewKey(assignment);
+        const assignmentKey = buildAssignmentStorageKey(assignment);
+        const reviewKey = buildReviewKey({ ...assignment, assignmentKey });
         const students = getSectionStudents({
           students: importedStudents,
           assignment,
         });
-        const sectionGrades = allGrades?.[activeGradeKey]?.[assignment.sectionName] || {};
+        const sectionGrades = allGrades?.[activeGradeKey]?.[assignmentKey] || {};
         const encodedCount = getEncodedCount({
           grades: sectionGrades,
           students,
@@ -118,10 +116,16 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
 
         return {
           reviewKey,
+          assignmentKey,
           facultyId: assignment.facultyId,
           facultyName: assignment.facultyName,
           department: assignment.program,
           sectionName: assignment.sectionName,
+          subjectCode: assignment.subjectCode,
+          subjectTitle: assignment.subjectTitle,
+          units: assignment.units,
+          schedule: assignment.schedule,
+          day: assignment.day,
           schoolYear: assignment.schoolYear,
           semester: assignment.semester,
           students,
@@ -152,7 +156,12 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
     const facultySummaries = departmentFaculty.map((faculty) => {
       const encodedSections = faculty.sections.filter((section) => {
         const row = monitoredRows.find(
-          (monitoredRow) => monitoredRow.reviewKey === buildReviewKey(section)
+          (monitoredRow) =>
+            monitoredRow.reviewKey ===
+            buildReviewKey({
+              ...section,
+              assignmentKey: buildAssignmentStorageKey(section),
+            })
         );
         return row && row.encodedCount > 0;
       }).length;
@@ -183,12 +192,14 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
         status,
         note,
         lastUpdated: new Date().toISOString(),
+        assignmentKey: selectedSection.assignmentKey,
         facultyId: selectedSection.facultyId,
         facultyName: selectedSection.facultyName,
         sectionName: selectedSection.sectionName,
         department: selectedSection.department,
         schoolYear: selectedSection.schoolYear,
         semester: selectedSection.semester,
+        subjectCode: selectedSection.subjectCode,
       },
     }));
   };
@@ -223,7 +234,7 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
         chairpersonData={chairpersonData}
         departmentCount={departmentFaculty.length}
         availableDepartments={availableDepartments}
-        selectedDepartment={selectedDepartment}
+        selectedDepartment={resolvedSelectedDepartment}
         onDepartmentChange={setSelectedDepartment}
         onLogout={onLogout}
       />

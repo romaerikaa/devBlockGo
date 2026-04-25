@@ -3,6 +3,17 @@ export const CHAIRPERSON_REVIEW_KEY = "chairpersonSectionReviews";
 export const normalizeText = (value = "") =>
   String(value).trim().toLowerCase();
 
+export const buildAssignmentStorageKey = (assignment = {}) =>
+  assignment.assignmentKey ||
+  assignment.id ||
+  [
+    Number(assignment.facultyId),
+    assignment.sectionName,
+    assignment.schoolYear,
+    assignment.semester,
+    assignment.subjectCode,
+  ].join("__");
+
 export const buildFacultyDirectory = ({ facultyList = [], assignments = [] }) => {
   const map = new Map();
 
@@ -36,6 +47,10 @@ export const buildFacultyDirectory = ({ facultyList = [], assignments = [] }) =>
 
 export const getSectionStudents = ({ students = [], assignment }) => {
   if (!assignment) return [];
+
+  if (Array.isArray(assignment.rosterStudents) && assignment.rosterStudents.length) {
+    return assignment.rosterStudents;
+  }
 
   return students.filter((student) => {
     const sameProgram = normalizeText(student.program) === normalizeText(assignment.program);
@@ -129,10 +144,7 @@ export const getChairActionLabel = (status = "pending") => {
 
 export const buildReviewKey = (assignment) =>
   [
-    Number(assignment.facultyId),
-    assignment.sectionName,
-    assignment.schoolYear,
-    assignment.semester,
+    buildAssignmentStorageKey(assignment),
   ].join("__");
 
 export const computeGradeStatus = (record = {}, activeTerm = "finals") => {
