@@ -5,6 +5,7 @@ import FacultyPortal from "./pages/FacultyPortal";
 import RegistrarPortal from "./pages/RegistrarPortal";
 import ChairpersonPortal from "./pages/ChairpersonPortal";
 import { CHAIRPERSON_REVIEW_KEY } from "./utils/chairpersonHelpers";
+import { getPublishedGradesForStudent } from "./utils/publishedGradesHelpers";
 
 function App() {
   const [userRole, setUserRole] = useState(localStorage.getItem("userRole"));
@@ -46,10 +47,10 @@ function App() {
   };
 
   const studentData = {
-    firstName: "Roma",
-    lastName: "Alapar",
-    middleName: "M.",
-    studentId: "23-0001",
+    firstName: "Mikasa",
+    lastName: "Crisostomo",
+    middleName: "L.",
+    studentId: "26-0002",
     dateOfBirth: "January 01, 2005",
     phone: "09123456789",
     sex: "Female",
@@ -85,8 +86,11 @@ function App() {
   const calculateFailedSubjects = (subjects) => {
     let failedCount = 0;
     subjects.forEach(sub => {
-      const finalNumeric = (sub.midterm + sub.finals) / 2; // Assuming average of midterm and finals
-      if (finalNumeric < 75) { // Assuming 75 is the passing grade threshold
+      const finalNumeric = sub.finalGrade
+        ? Number(sub.finalGrade)
+        : (Number(sub.midterm) + Number(sub.finals)) / 2;
+
+      if (Number.isFinite(finalNumeric) && finalNumeric < 75) {
         failedCount++;
       }
     });
@@ -98,9 +102,13 @@ function App() {
     return <LoginPage onLogin={handleLogin} />;
   }
   if (userRole === "student") {
-    const failedSubjectsCount = calculateFailedSubjects(studentData.subjects);
-    return <StudentPortal studentData={studentData} onLogout={handleLogout} failedSubjectsCount={failedSubjectsCount} />;
-    console.log("Calculated failedSubjectsCount in App.jsx:", failedSubjectsCount); // This console.log will not execute because of the return statement above it.
+    const publishedSubjects = getPublishedGradesForStudent(studentData.studentId);
+    const resolvedStudentData = {
+      ...studentData,
+      subjects: publishedSubjects.length ? publishedSubjects : studentData.subjects,
+    };
+    const failedSubjectsCount = calculateFailedSubjects(resolvedStudentData.subjects);
+    return <StudentPortal studentData={resolvedStudentData} onLogout={handleLogout} failedSubjectsCount={failedSubjectsCount} />;
   }
 
   if (userRole === "faculty") {
@@ -118,6 +126,7 @@ function App() {
       <RegistrarPortal
         onLogout={handleLogout}
         onResetEncodingSeason={handleResetEncodingSeason}
+        allGrades={allGrades}
       />
     );
   }

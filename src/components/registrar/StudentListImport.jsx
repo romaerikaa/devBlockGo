@@ -84,9 +84,9 @@ function StudentListImport() {
     }
 
     const csvContent =
-      "Student ID,Sex,Last Name,First Name,Middle Initial\n" +
-      "26-0001,Male,Dela Cruz,Juan,A\n" +
-      "26-0002,Female,Santos,Maria,L\n";
+      "Student ID,Sex,Last Name,First Name,Middle Initial,Year Level\n" +
+      "26-0001,Male,Dela Cruz,Juan,A,1st Year\n" +
+      "26-0002,Female,Santos,Maria,L,1st Year\n";
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -202,7 +202,7 @@ function StudentListImport() {
           </h3>
           <p className="mt-1 text-sm text-slate-500">
             Upload one Excel CSV file per department with student ID, sex, last
-            name, first name, and middle initial, then
+            name, first name, middle initial, and optional year level, then
             forward it to the assigned chairperson for sectioning.
           </p>
         </div>
@@ -307,7 +307,7 @@ function StudentListImport() {
               <p className="mt-2 text-sm text-slate-500">
                 {selectedFile
                   ? `Selected file: ${selectedFile.name}`
-                  : "Template format: Student ID, Sex, Last Name, First Name, Middle Initial saved from Excel as CSV"}
+                  : "Template format: Student ID, Sex, Last Name, First Name, Middle Initial, optional Year Level saved from Excel as CSV"}
               </p>
             </div>
 

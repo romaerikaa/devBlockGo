@@ -80,9 +80,14 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
   const chairpersonDepartment = resolvedSelectedDepartment;
 
   const activeGradeKey = chairpersonData.semester;
-  const activeTerm = chairpersonData.semester.toLowerCase().includes("1st")
-    ? "midterm"
-    : "finals";
+  const encodingData = useMemo(() => {
+    const saved = localStorage.getItem("encodingPeriod");
+    return saved ? JSON.parse(saved) : null;
+  }, []);
+  const activeTerm =
+    encodingData?.term === "finals" || encodingData?.term === "midterm"
+      ? encodingData.term
+      : "midterm";
 
   const departmentFaculty = useMemo(() => {
     const facultyDirectory = buildFacultyDirectory({
@@ -99,7 +104,11 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
     return departmentFaculty.flatMap((faculty) => {
       return faculty.sections.map((assignment) => {
         const assignmentKey = buildAssignmentStorageKey(assignment);
-        const reviewKey = buildReviewKey({ ...assignment, assignmentKey });
+        const reviewKey = buildReviewKey({
+          ...assignment,
+          assignmentKey,
+          term: activeTerm,
+        });
         const students = getSectionStudents({
           students: importedStudents,
           assignment,
@@ -158,10 +167,11 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
         const row = monitoredRows.find(
           (monitoredRow) =>
             monitoredRow.reviewKey ===
-            buildReviewKey({
-              ...section,
-              assignmentKey: buildAssignmentStorageKey(section),
-            })
+              buildReviewKey({
+                ...section,
+                assignmentKey: buildAssignmentStorageKey(section),
+                term: activeTerm,
+              })
         );
         return row && row.encodedCount > 0;
       }).length;
@@ -181,7 +191,7 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
       forwardedSections: monitoredRows.filter((row) => row.reviewStatus === "forwarded").length,
       completedFaculty: facultySummaries.filter((status) => status === "Completed").length,
     };
-  }, [departmentFaculty, monitoredRows]);
+  }, [activeTerm, departmentFaculty, monitoredRows]);
 
   const updateReviewStatus = (status, note = "") => {
     if (!selectedSection) return;
@@ -200,6 +210,7 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
         schoolYear: selectedSection.schoolYear,
         semester: selectedSection.semester,
         subjectCode: selectedSection.subjectCode,
+        term: activeTerm,
       },
     }));
   };

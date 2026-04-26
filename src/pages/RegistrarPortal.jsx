@@ -5,8 +5,9 @@ import RegistrarDashboard from "../components/registrar/RegistrarDashboard";
 import FacultyMonitoring from "../components/registrar/FacultyMonitoring";
 import EncodingPeriod from "../components/registrar/EncodingPeriod";
 import StudentListImport from "../components/registrar/StudentListImport";
+import GradeFinalization from "../components/registrar/GradeFinalization";
 
-function RegistrarPortal({ onLogout, onResetEncodingSeason }) {
+function RegistrarPortal({ onLogout, onResetEncodingSeason, allGrades = {} }) {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   const registrarData = {
@@ -68,6 +69,10 @@ function RegistrarPortal({ onLogout, onResetEncodingSeason }) {
 
   if (activeTab === "monitoring") {
     return <FacultyMonitoring />;
+  }
+
+  if (activeTab === "finalization") {
+    return <GradeFinalization allGrades={allGrades} />;
   }
 
   return (

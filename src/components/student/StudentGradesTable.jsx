@@ -1,13 +1,45 @@
 import { getPLVPoint } from "../../utils/studentHelpers";
 
+const getSubjectDisplay = (subject) => {
+  const midterm = subject.midterm || "-";
+  const finals = subject.finals || "-";
+  const finalGrade =
+    subject.finalGrade ||
+    (Number(subject.midterm) && Number(subject.finals)
+      ? ((Number(subject.midterm) + Number(subject.finals)) / 2).toFixed(2)
+      : "-");
+  const equivalent =
+    subject.equivalent ||
+    (finalGrade !== "-" && !Number.isNaN(Number(finalGrade))
+      ? getPLVPoint(Number(finalGrade), Number(finalGrade)).toFixed(2)
+      : finalGrade);
+  const remarks =
+    subject.remarks ||
+    (finalGrade !== "-" && !Number.isNaN(Number(finalGrade))
+      ? Number(finalGrade) >= 75
+        ? "Passed"
+        : "Failed"
+      : "Incomplete");
+
+  return {
+    code: subject.code || subject.subjectCode || "--",
+    name: subject.name || subject.subjectTitle || "--",
+    units: subject.units || 0,
+    midterm,
+    finals,
+    finalGrade,
+    equivalent,
+    remarks,
+    passed: String(remarks).toLowerCase() === "passed",
+  };
+};
+
 const StudentGradesTable = ({ subjects }) => {
   return (
     <div className="mx-4 mt-5 md:mx-6">
       <div className="space-y-3 md:hidden">
         {subjects.map((sub, index) => {
-          const finalNumeric = ((sub.midterm + sub.finals) / 2).toFixed(2);
-          const finalEquivalent = getPLVPoint(sub.midterm, sub.finals);
-          const passed = finalEquivalent <= 3.0;
+          const display = getSubjectDisplay(sub);
 
           return (
             <div
@@ -16,39 +48,39 @@ const StudentGradesTable = ({ subjects }) => {
             >
               <div className="mb-3">
                 <p className="text-sm text-slate-500">Code</p>
-                <p className="font-semibold text-[#003366]">{sub.code}</p>
+                <p className="font-semibold text-[#003366]">{display.code}</p>
               </div>
 
               <div className="mb-3">
                 <p className="text-sm text-slate-500">Subject Title</p>
-                <p className="font-semibold">{sub.name}</p>
+                <p className="font-semibold">{display.name}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-slate-500">Units</p>
-                  <p className="font-semibold">{sub.units}</p>
+                  <p className="font-semibold">{display.units}</p>
                 </div>
 
                 <div>
                   <p className="text-slate-500">Midterm</p>
-                  <p className="font-semibold">{sub.midterm}</p>
+                  <p className="font-semibold">{display.midterm}</p>
                 </div>
 
                 <div>
                   <p className="text-slate-500">Finals</p>
-                  <p className="font-semibold">{sub.finals}</p>
+                  <p className="font-semibold">{display.finals}</p>
                 </div>
 
                 <div>
                   <p className="text-slate-500">Final Grade</p>
-                  <p className="font-semibold text-[#003366]">{finalNumeric}</p>
+                  <p className="font-semibold text-[#003366]">{display.finalGrade}</p>
                 </div>
 
                 <div>
                   <p className="text-slate-500">Grade Equivalent</p>
                   <p className="font-semibold text-[#003366]">
-                    {finalEquivalent.toFixed(2)}
+                    {display.equivalent}
                   </p>
                 </div>
 
@@ -56,12 +88,12 @@ const StudentGradesTable = ({ subjects }) => {
                   <p className="text-slate-500">Remarks</p>
                   <span
                     className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${
-                      passed
+                      display.passed
                         ? "bg-green-100 text-green-600"
                         : "bg-red-100 text-red-600"
                     }`}
                   >
-                    {passed ? "PASSED" : "FAILED"}
+                    {String(display.remarks).toUpperCase()}
                   </span>
                 </div>
               </div>
@@ -87,33 +119,31 @@ const StudentGradesTable = ({ subjects }) => {
 
           <tbody>
             {subjects.map((sub, index) => {
-              const finalNumeric = ((sub.midterm + sub.finals) / 2).toFixed(2);
-              const finalEquivalent = getPLVPoint(sub.midterm, sub.finals);
-              const passed = finalEquivalent <= 3.0;
+              const display = getSubjectDisplay(sub);
 
               return (
                 <tr
                   key={index}
                   className="border-b border-slate-200 hover:bg-slate-50"
                 >
-                  <td className="p-4 font-semibold text-[#003366]">{sub.code}</td>
-                  <td className="p-4">{sub.name}</td>
-                  <td className="p-4 text-center">{sub.units}</td>
-                  <td className="p-4 text-center">{sub.midterm}</td>
-                  <td className="p-4 text-center">{sub.finals}</td>
-                  <td className="p-4 text-center font-bold">{finalNumeric}</td>
+                  <td className="p-4 font-semibold text-[#003366]">{display.code}</td>
+                  <td className="p-4">{display.name}</td>
+                  <td className="p-4 text-center">{display.units}</td>
+                  <td className="p-4 text-center">{display.midterm}</td>
+                  <td className="p-4 text-center">{display.finals}</td>
+                  <td className="p-4 text-center font-bold">{display.finalGrade}</td>
                   <td className="p-4 text-center font-bold text-[#003366]">
-                    {finalEquivalent.toFixed(2)}
+                    {display.equivalent}
                   </td>
                   <td className="p-4 text-center">
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-bold ${
-                        passed
+                        display.passed
                           ? "bg-green-100 text-green-600"
                           : "bg-red-100 text-red-600"
                       }`}
                     >
-                      {passed ? "PASSED" : "FAILED"}
+                      {String(display.remarks).toUpperCase()}
                     </span>
                   </td>
                 </tr>

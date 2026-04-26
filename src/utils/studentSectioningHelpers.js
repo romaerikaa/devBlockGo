@@ -19,6 +19,13 @@ export const AVAILABLE_SECTION_CODES = [
   "4-2",
 ];
 
+export const YEAR_LEVEL_PREFIXES = {
+  "1st Year": "1",
+  "2nd Year": "2",
+  "3rd Year": "3",
+  "4th Year": "4",
+};
+
 const PROGRAM_SECTION_PREFIXES = {
   "Bachelor of Science in Information Technology": "BSIT",
   "Bachelor of Science in Accountancy": "BSA",
@@ -81,6 +88,7 @@ export const parseStudentIdSpreadsheet = (text = "") => {
   const lastNameIndex = headers.indexOf("last name");
   const firstNameIndex = headers.indexOf("first name");
   const middleInitialIndex = headers.indexOf("middle initial");
+  const yearLevelIndex = headers.indexOf("year level");
 
   if (
     studentIdIndex === -1 ||
@@ -103,7 +111,7 @@ export const parseStudentIdSpreadsheet = (text = "") => {
         lastName: values[lastNameIndex] || "",
         firstName: values[firstNameIndex] || "",
         middleInitial: values[middleInitialIndex] || "",
-        yearLevel: "",
+        yearLevel: yearLevelIndex === -1 ? "" : values[yearLevelIndex] || "",
         sectionCode: "",
       };
     })
@@ -124,6 +132,7 @@ export const buildStudentCsvContent = (students = []) => {
     "Last Name",
     "First Name",
     "Middle Initial",
+    "Year Level",
   ];
 
   const rows = students.map((student) =>
@@ -133,6 +142,7 @@ export const buildStudentCsvContent = (students = []) => {
       student.lastName,
       student.firstName,
       student.middleInitial,
+      student.yearLevel || "",
     ]
       .map(escapeCsvValue)
       .join(",")

@@ -1,17 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 function EncodingPeriod({ onResetEncodingSeason }) {
-  const [startDate, setStartDate] = useState("2026-05-01");
-  const [endDate, setEndDate] = useState("2026-05-15");
-
-  useEffect(() => {
+  const [period, setPeriod] = useState(() => {
     const savedPeriod = JSON.parse(localStorage.getItem("encodingPeriod"));
 
-    if (savedPeriod) {
-      setStartDate(savedPeriod.startDate || "2026-05-01");
-      setEndDate(savedPeriod.endDate || "2026-05-15");
-    }
-  }, []);
+    return {
+      startDate: savedPeriod?.startDate || "2026-05-01",
+      endDate: savedPeriod?.endDate || "2026-05-15",
+      term: savedPeriod?.term || "midterm",
+    };
+  });
+
+  const { startDate, endDate, term } = period;
+
+  const updatePeriod = (field, value) => {
+    setPeriod((current) => ({ ...current, [field]: value }));
+  };
 
   const getBannerStatus = () => {
     const today = new Date();
@@ -34,8 +38,7 @@ function EncodingPeriod({ onResetEncodingSeason }) {
 
   const handleSave = () => {
     const encodingData = {
-      startDate,
-      endDate,
+      ...period,
     };
 
     localStorage.setItem("encodingPeriod", JSON.stringify(encodingData));
@@ -79,7 +82,21 @@ function EncodingPeriod({ onResetEncodingSeason }) {
           </span>
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              Encoding Term
+            </label>
+            <select
+              value={term}
+              onChange={(e) => updatePeriod("term", e.target.value)}
+              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#003366]"
+            >
+              <option value="midterm">Midterms</option>
+              <option value="finals">Finals</option>
+            </select>
+          </div>
+
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
               Start Date
@@ -87,7 +104,7 @@ function EncodingPeriod({ onResetEncodingSeason }) {
             <input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => updatePeriod("startDate", e.target.value)}
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#003366]"
             />
           </div>
@@ -99,7 +116,7 @@ function EncodingPeriod({ onResetEncodingSeason }) {
             <input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => updatePeriod("endDate", e.target.value)}
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#003366]"
             />
           </div>
@@ -125,7 +142,14 @@ function EncodingPeriod({ onResetEncodingSeason }) {
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-bold text-[#003366]">Current Schedule</h3>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div className="rounded-xl bg-slate-50 p-4">
+            <p className="text-sm text-slate-500">Encoding Term</p>
+            <p className="mt-1 font-semibold text-slate-800">
+              {term === "midterm" ? "Midterms" : "Finals"}
+            </p>
+          </div>
+
           <div className="rounded-xl bg-slate-50 p-4">
             <p className="text-sm text-slate-500">Start Date</p>
             <p className="mt-1 font-semibold text-slate-800">{startDate}</p>

@@ -14,13 +14,19 @@ export const getPLVPoint = (midterm, finals) => {
 };
 
 export const getTotalUnits = (subjects) =>
-  subjects.reduce((sum, s) => sum + s.units, 0);
+  subjects.reduce((sum, s) => sum + Number(s.units || 0), 0);
 
 export const getCalculatedGWA = (subjects) => {
   const totalUnits = getTotalUnits(subjects);
 
   const total = subjects.reduce((sum, s) => {
-    const eq = getPLVPoint(s.midterm, s.finals);
+    const finalGrade = Number(s.finalGrade);
+    const eq = Number.isFinite(finalGrade)
+      ? getPLVPoint(finalGrade, finalGrade)
+      : getPLVPoint(Number(s.midterm), Number(s.finals));
+
+    if (!Number.isFinite(eq)) return sum;
+
     return sum + eq * s.units;
   }, 0);
 

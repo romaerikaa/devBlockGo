@@ -122,35 +122,12 @@ function AcademicAssignment({ chairpersonDepartment = "" }) {
       return;
     }
 
-    if (!selectedFile) {
-      alert("Please upload the section CSV file for this faculty load.");
-      return;
-    }
-
-    if (!selectedFile.name.toLowerCase().endsWith(".csv")) {
+    if (selectedFile && !selectedFile.name.toLowerCase().endsWith(".csv")) {
       alert("Please upload the section roster in CSV format.");
       return;
     }
 
-    const reader = new FileReader();
-
-    reader.onload = (event) => {
-      const text = event.target?.result;
-
-      if (!text) {
-        alert("Unable to read the uploaded CSV file.");
-        return;
-      }
-
-      const parsedStudents = parseStudentIdSpreadsheet(text);
-
-      if (!parsedStudents.length) {
-        alert(
-          "The section CSV must contain Student ID, Sex, Last Name, First Name, and Middle Initial columns with valid rows."
-        );
-        return;
-      }
-
+    const saveAssignment = (rosterStudents, rosterFileName = "Created section roster") => {
       const alreadyExists = savedAssignments.some(
         (item) =>
           item.facultyId === Number(selectedFacultyId) &&
@@ -179,8 +156,8 @@ function AcademicAssignment({ chairpersonDepartment = "" }) {
         day: selectedDaysText,
         schoolYear: selectedSchoolYear,
         semester: semester.trim(),
-        rosterFileName: selectedFile.name,
-        rosterStudents: parsedStudents,
+        rosterFileName,
+        rosterStudents,
         uploadedAt: new Date().toISOString(),
       };
 
@@ -191,8 +168,40 @@ function AcademicAssignment({ chairpersonDepartment = "" }) {
         JSON.stringify(updatedAssignments)
       );
 
-      alert("Faculty section CSV uploaded successfully.");
+      alert("Section distributed to faculty successfully.");
       resetForm();
+    };
+
+    if (!selectedFile) {
+      if (!selectedSectionStudents.length) {
+        alert("Selected section has no students to distribute.");
+        return;
+      }
+
+      saveAssignment(selectedSectionStudents);
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      const text = event.target?.result;
+
+      if (!text) {
+        alert("Unable to read the uploaded CSV file.");
+        return;
+      }
+
+      const parsedStudents = parseStudentIdSpreadsheet(text);
+
+      if (!parsedStudents.length) {
+        alert(
+          "The section CSV must contain Student ID, Sex, Last Name, First Name, and Middle Initial columns with valid rows."
+        );
+        return;
+      }
+
+      saveAssignment(parsedStudents, selectedFile.name);
     };
 
     reader.readAsText(selectedFile);
@@ -213,12 +222,12 @@ function AcademicAssignment({ chairpersonDepartment = "" }) {
     <div className="space-y-6">
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="text-xl font-bold text-[#003366]">
-          Faculty Section CSV Upload
+          Faculty Section Distribution
         </h3>
         <p className="mt-1 text-sm text-slate-500">
-          After sectioning students, upload each section CSV to the assigned
-          faculty together with the subject and schedule details for grade
-          encoding.
+          After sectioning students, distribute each created section to the
+          assigned faculty together with the subject and schedule details for
+          grade encoding. Upload a CSV only when you need to override the roster.
         </p>
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -351,7 +360,7 @@ function AcademicAssignment({ chairpersonDepartment = "" }) {
 
           <div className="md:col-span-2 xl:col-span-3">
             <label className="mb-2 block text-sm font-medium text-slate-700">
-              Upload Section CSV
+              Optional Section CSV Override
             </label>
             <input
               type="file"
@@ -363,7 +372,7 @@ function AcademicAssignment({ chairpersonDepartment = "" }) {
               <span>
                 {selectedFile
                   ? `Selected file: ${selectedFile.name}`
-                  : "Upload the finalized section roster in CSV format."}
+                  : "Leave blank to use the created section roster."}
               </span>
 
               <button
@@ -462,16 +471,16 @@ function AcademicAssignment({ chairpersonDepartment = "" }) {
           onClick={handleAssign}
           className="mt-6 rounded-xl bg-[#003366] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#00264d]"
         >
-          Upload Section to Faculty
+          Distribute Section to Faculty
         </button>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-bold text-[#003366]">
-          Uploaded Faculty Sections
+          Distributed Faculty Sections
         </h3>
         <p className="mt-1 text-sm text-slate-500">
-          One faculty member can receive multiple section CSV uploads, each with
+          One faculty member can receive multiple section assignments, each with
           its own subject and schedule details.
         </p>
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import FacultyHeader from "../components/faculty/FacultyHeader";
 import EncodingBanner from "../components/faculty/EncodingBanner";
 import YearTabs from "../components/faculty/YearTabs";
@@ -24,7 +24,6 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
 
   const [systemSettings] = useState({
     semester: "2nd Semester",
-    term: "midterm",
   });
 
   const facultyData = {
@@ -47,6 +46,11 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
     const saved = localStorage.getItem("encodingPeriod");
     return saved ? JSON.parse(saved) : null;
   }, []);
+
+  const systemTerm =
+    encodingData?.term === "finals" || encodingData?.term === "midterm"
+      ? encodingData.term
+      : "midterm";
 
   const assignments = useMemo(() => {
     const saved = localStorage.getItem("registrarAssignments");
@@ -100,7 +104,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
 
   const activeGradeKey = systemSettings.semester;
 
-  const getReviewKey = (assignmentKey, sectionData) =>
+  const getReviewKey = useCallback((assignmentKey, sectionData) =>
     buildReviewKey({
       assignmentKey,
       facultyId: 1,
@@ -108,7 +112,8 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
       schoolYear: sectionData.schoolYear,
       semester: sectionData.semester,
       subjectCode: sectionData.subjectCode,
-    });
+      term: systemTerm,
+    }), [systemTerm]);
 
   const normalizedReviewData = useMemo(() => {
     const next = { ...reviewData };
@@ -138,7 +143,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
     });
 
     return next;
-  }, [reviewData, sections]);
+  }, [getReviewKey, reviewData, sections]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -157,8 +162,8 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
       const record = currentSectionGrades[student.id];
       if (!record) return false;
 
-      if (systemSettings.term === "midterm") return !!record.midterm;
-      if (systemSettings.term === "finals") return !!record.finals;
+      if (systemTerm === "midterm") return !!record.midterm;
+      if (systemTerm === "finals") return !!record.finals;
 
       return false;
     }).length;
@@ -186,6 +191,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
           schoolYear: sectionData.schoolYear,
           semester: sectionData.semester,
           subjectCode: sectionData.subjectCode,
+          term: systemTerm,
           studentRosterSignature: buildStudentRosterSignature(sectionData.students),
         },
       };
@@ -323,7 +329,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
         <GradingTable
           selectedSection={selectedSection}
           onBack={() => setSelectedSection(null)}
-          systemTerm={systemSettings.term}
+          systemTerm={systemTerm}
           activeGradeKey={activeGradeKey}
           isEncodingOpen={isEncodingOpen}
           grades={

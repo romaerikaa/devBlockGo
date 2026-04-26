@@ -143,9 +143,7 @@ export const getChairActionLabel = (status = "pending") => {
 };
 
 export const buildReviewKey = (assignment) =>
-  [
-    buildAssignmentStorageKey(assignment),
-  ].join("__");
+  [buildAssignmentStorageKey(assignment), assignment.term || "finals"].join("__");
 
 export const computeGradeStatus = (record = {}, activeTerm = "finals") => {
   if (["dropped", "unofficially_dropped", "withdrawn", "incomplete"].includes(record.standing)) {
