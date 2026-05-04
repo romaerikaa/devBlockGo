@@ -47,13 +47,13 @@ function EncodingPeriod({ onResetEncodingSeason }) {
 
   const handleResetSeason = () => {
     const shouldReset = window.confirm(
-      "Reset this encoding season? This will clear saved faculty grades and chairperson review statuses."
+      "Reset this encoding season? This will clear faculty section assignments, saved grades, and chairperson review statuses."
     );
 
     if (!shouldReset) return;
 
     onResetEncodingSeason?.();
-    alert("Encoding season data has been reset.");
+    alert("Encoding season has been reset. Faculty section cards are now cleared.");
   };
 
   return (

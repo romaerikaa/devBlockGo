@@ -6,6 +6,12 @@ import {
 } from "../../utils/chairpersonHelpers";
 import { getGradeEquivalent } from "../../utils/gradingHelpers";
 
+const formatLogDate = (value) => {
+  if (!value) return "--";
+
+  return new Date(value).toLocaleString();
+};
+
 function SectionReviewPanel({
   selectedSection,
   activeTerm,
@@ -207,6 +213,49 @@ function SectionReviewPanel({
           >
             Forward to Registrar
           </button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-bold text-[#003366]">Decision Log</h3>
+        <p className="mt-1 text-sm text-slate-500">
+          Approval and send-back history for this section.
+        </p>
+
+        <div className="mt-4 space-y-3">
+          {(selectedSection.reviewLogs || []).length ? (
+            [...selectedSection.reviewLogs].reverse().map((log, index) => (
+              <div
+                key={`${log.timestamp}-${index}`}
+                className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+              >
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <span
+                    className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${getReviewStatusClasses(
+                      log.status
+                    )}`}
+                  >
+                    {getReviewStatusLabel(log.status)}
+                  </span>
+                  <p className="text-xs text-slate-500">
+                    {formatLogDate(log.timestamp)}
+                  </p>
+                </div>
+                <p className="mt-2 text-sm font-semibold text-slate-700">
+                  {log.actor || "Chairperson"}
+                </p>
+                {log.note ? (
+                  <p className="mt-1 text-sm text-slate-600">{log.note}</p>
+                ) : (
+                  <p className="mt-1 text-sm text-slate-400">No note added.</p>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-sm text-slate-500">
+              No chairperson decision has been recorded yet.
+            </div>
+          )}
         </div>
       </div>
     </div>

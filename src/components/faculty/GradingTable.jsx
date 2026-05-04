@@ -9,6 +9,27 @@ import {
   getStatus,
 } from "../../utils/gradingHelpers";
 
+const compareStudentsByName = (left, right) => {
+  const leftName = [
+    left.lastName,
+    left.firstName,
+    left.middleInitial,
+    left.id,
+  ]
+    .join(" ")
+    .toLowerCase();
+  const rightName = [
+    right.lastName,
+    right.firstName,
+    right.middleInitial,
+    right.id,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return leftName.localeCompare(rightName);
+};
+
 const GradingTable = ({
   selectedSection,
   onBack,
@@ -21,8 +42,21 @@ const GradingTable = ({
   reviewNote = "",
 }) => {
   const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [studentSearch, setStudentSearch] = useState("");
   const activeTerm = systemTerm;
   const gradeStorageKey = selectedSection.assignmentKey || selectedSection.sectionName;
+  const sortedStudents = [...(selectedSection.students || [])].sort(
+    compareStudentsByName
+  );
+  const searchValue = studentSearch.trim().toLowerCase();
+  const visibleStudents = searchValue
+    ? sortedStudents.filter((student) => {
+        const studentName = formatName(student).toLowerCase();
+        const studentId = String(student.id || "").toLowerCase();
+
+        return studentName.includes(searchValue) || studentId.includes(searchValue);
+      })
+    : sortedStudents;
 
   const handleChange = (studentId, field, value) => {
     const formattedValue = ["INC", "UD", "D", "W"].includes(value.toUpperCase())
@@ -128,6 +162,13 @@ const GradingTable = ({
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              type="text"
+              value={studentSearch}
+              onChange={(event) => setStudentSearch(event.target.value)}
+              placeholder="Search student..."
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none focus:border-[#003366]"
+            />
             <button
               onClick={() => setShowBulkUpload(true)}
               disabled={!isEncodingOpen}
@@ -163,7 +204,7 @@ const GradingTable = ({
         ) : null}
 
         <div className="space-y-3 p-4 md:hidden">
-          {selectedSection.students.map((student) => {
+          {visibleStudents.map((student) => {
             const studentData = grades[student.id] || {};
             const final = computeFinal(grades, student.id, activeTerm);
             const status = getStatus(final, activeTerm);
@@ -292,7 +333,18 @@ const GradingTable = ({
         </div>
 
         <div className="hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[900px]">
+          <table className="w-full min-w-[900px] table-fixed">
+            <colgroup>
+              <col className="w-[9%]" />
+              <col className="w-[18%]" />
+              <col className="w-[12%]" />
+              <col className="w-[12%]" />
+              <col className="w-[12%]" />
+              <col className="w-[14%]" />
+              <col className="w-[10%]" />
+              <col className="w-[13%]" />
+              <col className="w-[10%]" />
+            </colgroup>
             <thead>
               <tr className="border-b-4 border-yellow-400 bg-[#003b78] text-white">
                 <th className="px-6 py-4 text-left text-[15px] font-bold uppercase tracking-wide">
@@ -326,7 +378,7 @@ const GradingTable = ({
             </thead>
 
             <tbody>
-              {selectedSection.students.map((student) => (
+              {visibleStudents.map((student) => (
                 <StudentRow
                   key={student.id}
                   student={student}
@@ -341,6 +393,11 @@ const GradingTable = ({
             </tbody>
           </table>
         </div>
+        {!visibleStudents.length ? (
+          <div className="border-t border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+            No students match your search.
+          </div>
+        ) : null}
       </div>
 
       <BulkUploadModal

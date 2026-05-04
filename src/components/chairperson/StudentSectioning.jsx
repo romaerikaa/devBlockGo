@@ -5,7 +5,6 @@ import {
   YEAR_LEVEL_PREFIXES,
   downloadStudentCsvFile,
   getDefaultSectionName,
-  parseStudentIdSpreadsheet,
   syncSectionedStudentsToStorage,
 } from "../../utils/studentSectioningHelpers";
 
@@ -73,16 +72,110 @@ const REMOVAL_REASONS = [
   "Encoding error",
   "Other",
 ];
+const GRADUATING_STUDENTS_KEY = "graduatingStudents";
+const GRADUATING_STATUSES = [
+  "Graduated",
+  "Incomplete",
+  "Returning Student",
+  "Irregular Completion",
+];
+const IRREGULAR_SUBJECTS_KEY = "irregularSubjectAssignments";
+
+const getStoredArray = (key) => {
+  const saved = localStorage.getItem(key);
+  return saved ? JSON.parse(saved) : [];
+};
+
+const getNextYearLevel = (yearLevel = "") => {
+  const nextYearLevels = {
+    "1st Year": "2nd Year",
+    "2nd Year": "3rd Year",
+    "3rd Year": "4th Year",
+  };
+
+  return nextYearLevels[yearLevel] || "";
+};
+
+const getNextSectionCode = (sectionCode = "", nextYearLevel = "") => {
+  const nextPrefix = YEAR_LEVEL_PREFIXES[nextYearLevel];
+  const sectionNumber = String(sectionCode).split("-")[1];
+
+  return nextPrefix && sectionNumber ? `${nextPrefix}-${sectionNumber}` : "";
+};
+
+const needsGraduatingReview = (student = {}) =>
+  (student.status || "Incomplete") !== "Graduated";
+
+const getGraduatingBatchKey = (student = {}) =>
+  [
+    student.program || "",
+    student.originBatchYear || student.batchYear || student.sourceSchoolYear || "",
+    student.targetSchoolYear || student.sourceSchoolYear || "",
+  ].join("|");
+
+const getBatchUpdatedTime = (batch = {}) =>
+  new Date(batch.lastSectionedAt || batch.submittedAt || 0).getTime();
+
+const getCurrentRolloverBatches = (workspaces = []) => {
+  const latestByBatchYear = {};
+
+  workspaces
+    .filter(
+      (batch) =>
+        (batch.students || []).length > 0 && (batch.sectionPlans || []).length > 0
+    )
+    .forEach((batch) => {
+      const batchYear = batch.batchYear || "Unassigned";
+      const current = latestByBatchYear[batchYear];
+
+      if (!current || getBatchUpdatedTime(batch) > getBatchUpdatedTime(current)) {
+        latestByBatchYear[batchYear] = batch;
+      }
+    });
+
+  return Object.values(latestByBatchYear).sort((left, right) =>
+    String(left.batchYear || "").localeCompare(String(right.batchYear || ""))
+  );
+};
+
+const buildIrregularSubjectKey = () =>
+  `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
   const [batches, setBatches] = useState(() => {
     const saved = localStorage.getItem(STUDENT_BATCHES_KEY);
     return saved ? JSON.parse(saved) : [];
   });
+  const [activeWorkspace, setActiveWorkspace] = useState("sectioning");
   const [selectedBatchKey, setSelectedBatchKey] = useState("");
   const [sectioningBatchYear, setSectioningBatchYear] = useState(() =>
     String(new Date().getFullYear())
   );
+  const [targetSemester] = useState("1st Semester");
+  const [promotionSummary, setPromotionSummary] = useState(null);
+  const [graduatingStudents, setGraduatingStudents] = useState(() =>
+    getStoredArray(GRADUATING_STUDENTS_KEY)
+  );
+  const [irregularSubjectAssignments, setIrregularSubjectAssignments] =
+    useState(() => getStoredArray(IRREGULAR_SUBJECTS_KEY));
+  const [graduatingStatusFilter, setGraduatingStatusFilter] =
+    useState("Needs Checking");
+  const [expandedGraduatingSections, setExpandedGraduatingSections] = useState(
+    {}
+  );
+  const [irregularSubjectForm, setIrregularSubjectForm] = useState({
+    studentKey: "",
+    subjectAssignmentId: "",
+    assignedSection: "",
+    faculty: "",
+    remarks: "",
+  });
+  const [transferSubjectForm, setTransferSubjectForm] = useState({
+    studentKey: "",
+    irregularSubjectId: "",
+    newSection: "",
+    reason: "",
+  });
   const [selectedYearLevel, setSelectedYearLevel] = useState("1st Year");
   const [manualSectionCount, setManualSectionCount] = useState("1");
   const [selectedSectionCode, setSelectedSectionCode] = useState("");
@@ -101,7 +194,8 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
       .filter(
         (batch) =>
           batch.program === chairpersonDepartment &&
-          (batch.status || "Forwarded") === "Forwarded"
+          (batch.status || "Forwarded") === "Forwarded" &&
+          !(batch.sectionPlans || []).length
       )
       .sort(
         (left, right) =>
@@ -110,8 +204,23 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
   }, [batches, chairpersonDepartment]);
 
   const departmentWorkspaces = useMemo(
-    () => batches.filter((batch) => batch.program === chairpersonDepartment),
+    () =>
+      batches.filter(
+        (batch) =>
+          batch.program === chairpersonDepartment && batch.status !== "Promoted"
+      ),
     [batches, chairpersonDepartment]
+  );
+  const savedAssignments = useMemo(() => {
+    const saved = localStorage.getItem("registrarAssignments");
+    return saved ? JSON.parse(saved) : [];
+  }, []);
+  const departmentAssignments = useMemo(
+    () =>
+      savedAssignments.filter(
+        (assignment) => assignment.program === chairpersonDepartment
+      ),
+    [chairpersonDepartment, savedAssignments]
   );
 
   const savedSectioningWorkspace = departmentWorkspaces.find((batch) =>
@@ -142,11 +251,12 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
     null;
 
   const sectionSummaries = yearSectionPlans.map((section) => {
+    const sectionYearLevel = section.yearLevel || selectedYearLevel;
     const sectionStudents = students
       .filter(
         (student) =>
           student.sectionCode === section.sectionCode &&
-          student.yearLevel === selectedYearLevel
+          (student.yearLevel || sectionYearLevel) === sectionYearLevel
       )
       .sort(compareStudentsByName);
     return {
@@ -159,13 +269,21 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
     };
   });
 
-  const searchValue = studentSearch.trim().toLowerCase();
+  const searchValue = useMemo(
+    () => studentSearch.trim().toLowerCase(),
+    [studentSearch]
+  );
   const visibleSectionStudents = selectedSection
     ? students
         .filter(
-          (student) =>
-            student.sectionCode === selectedSection.sectionCode &&
-            student.yearLevel === selectedYearLevel
+          (student) => {
+            const sectionYearLevel = selectedSection.yearLevel || selectedYearLevel;
+
+            return (
+              student.sectionCode === selectedSection.sectionCode &&
+              (student.yearLevel || sectionYearLevel) === sectionYearLevel
+            );
+          }
         )
         .sort(compareStudentsByName)
         .filter((student) => {
@@ -179,6 +297,198 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
           );
         })
     : [];
+  const departmentGraduatingStudents = useMemo(
+    () =>
+      graduatingStudents
+        .filter((student) => student.program === chairpersonDepartment)
+        .filter((student) => {
+          if (!searchValue) return true;
+
+          return (
+            student.studentId.toLowerCase().includes(searchValue) ||
+            buildStudentName(student).toLowerCase().includes(searchValue) ||
+            (student.sectionName || student.sectionCode || "")
+              .toLowerCase()
+              .includes(searchValue)
+          );
+        }),
+    [chairpersonDepartment, graduatingStudents, searchValue]
+  );
+  const visibleGraduatingStudents = useMemo(
+    () =>
+      departmentGraduatingStudents.filter((student) => {
+        if (graduatingStatusFilter === "All") return true;
+        if (graduatingStatusFilter === "Needs Checking") {
+          return needsGraduatingReview(student);
+        }
+
+        return (student.status || "Incomplete") === graduatingStatusFilter;
+      }),
+    [departmentGraduatingStudents, graduatingStatusFilter]
+  );
+  const graduatingBatchGroups = useMemo(() => {
+    const groupedBatches = {};
+
+    visibleGraduatingStudents.forEach((student) => {
+      const batchKey = getGraduatingBatchKey(student);
+      const batchYear =
+        student.originBatchYear || student.batchYear || student.sourceSchoolYear;
+      const reviewYear = student.targetSchoolYear || student.sourceSchoolYear;
+      const sectionKey = student.sectionCode || student.sectionName || "Unassigned";
+
+      if (!groupedBatches[batchKey]) {
+        groupedBatches[batchKey] = {
+          key: batchKey,
+          batchYear: batchYear || "Unassigned Batch",
+          reviewYear: reviewYear || "Graduation Review",
+          students: [],
+          sections: {},
+        };
+      }
+
+      if (!groupedBatches[batchKey].sections[sectionKey]) {
+        groupedBatches[batchKey].sections[sectionKey] = {
+          key: `${batchKey}|${sectionKey}`,
+          sectionName: student.sectionName || student.sectionCode || "Unassigned",
+          origin: [
+            student.sourceSchoolYear || student.batchYear,
+            student.yearLevel || "4th Year",
+          ]
+            .filter(Boolean)
+            .join(" - "),
+          students: [],
+        };
+      }
+
+      groupedBatches[batchKey].students.push(student);
+      groupedBatches[batchKey].sections[sectionKey].students.push(student);
+    });
+
+    return Object.values(groupedBatches).map((batch) => ({
+      ...batch,
+      sections: Object.values(batch.sections),
+    }));
+  }, [visibleGraduatingStudents]);
+  const graduatingReviewStats = useMemo(
+    () => ({
+      all: departmentGraduatingStudents.length,
+      needsChecking: departmentGraduatingStudents.filter(needsGraduatingReview)
+        .length,
+      graduated: departmentGraduatingStudents.filter(
+        (student) => student.status === "Graduated"
+      ).length,
+      incomplete: departmentGraduatingStudents.filter(
+        (student) => (student.status || "Incomplete") === "Incomplete"
+      ).length,
+      returning: departmentGraduatingStudents.filter(
+        (student) => student.status === "Returning Student"
+      ).length,
+      irregularCompletion: departmentGraduatingStudents.filter(
+        (student) => student.status === "Irregular Completion"
+      ).length,
+    }),
+    [departmentGraduatingStudents]
+  );
+  const departmentIrregularStudents = useMemo(
+    () =>
+      departmentWorkspaces
+        .flatMap((batch) =>
+          (batch.students || []).map((student) => ({
+            ...student,
+            batchKey: batch.key,
+            batchYear: batch.batchYear,
+            semester: batch.semester || "",
+            program: batch.program,
+          }))
+        )
+        .filter((student) => student.studentType === "Irregular")
+        .filter((student) => {
+          if (!searchValue) return true;
+
+          return (
+            student.studentId.toLowerCase().includes(searchValue) ||
+            buildStudentName(student).toLowerCase().includes(searchValue) ||
+            (student.sectionName || student.sectionCode || "")
+              .toLowerCase()
+              .includes(searchValue)
+          );
+        }),
+    [departmentWorkspaces, searchValue]
+  );
+  const departmentActiveStudents = useMemo(
+    () =>
+      departmentWorkspaces.flatMap((batch) =>
+        (batch.students || []).map((student) => ({
+          ...student,
+          batchKey: batch.key,
+          batchYear: batch.batchYear,
+          program: batch.program,
+        }))
+      ),
+    [departmentWorkspaces]
+  );
+  const availableIrregularSections = useMemo(
+    () =>
+      departmentWorkspaces.flatMap((batch) =>
+        (batch.sectionPlans || []).map((section) => ({
+          ...section,
+          batchKey: batch.key,
+          batchYear: batch.batchYear,
+          label:
+            section.sectionName ||
+            getDefaultSectionName(batch.program, section.sectionCode),
+        }))
+      ),
+    [departmentWorkspaces]
+  );
+  const currentRolloverBatches = getCurrentRolloverBatches(departmentWorkspaces);
+  const promotionSourceSections = (() => {
+    const grouped = {};
+
+    currentRolloverBatches.forEach((batch) => {
+      (batch.students || []).forEach((student) => {
+        const sectionCode = student.sectionCode || "unassigned";
+        const key = [
+          batch.key,
+          student.yearLevel || "Unassigned",
+          sectionCode,
+        ].join("|");
+
+        if (!grouped[key]) {
+          const nextYearLevel = getNextYearLevel(student.yearLevel);
+          const nextSectionCode = getNextSectionCode(
+            student.sectionCode,
+            nextYearLevel
+          );
+
+          grouped[key] = {
+            key,
+            originBatchYear: batch.batchYear,
+            sourceYearLevel: student.yearLevel || "Unassigned",
+            sourceSection:
+              student.sectionName || student.sectionCode || "Unassigned",
+            targetYearLevel: nextYearLevel || "Graduating Review",
+            targetSection: nextSectionCode
+              ? getDefaultSectionName(batch.program, nextSectionCode)
+              : "Graduating Review",
+            students: [],
+          };
+        }
+
+        grouped[key].students.push(student);
+      });
+    });
+
+    return Object.values(grouped).sort((left, right) =>
+      [left.originBatchYear, left.sourceYearLevel, left.sourceSection]
+        .join(" ")
+        .localeCompare(
+          [right.originBatchYear, right.sourceYearLevel, right.sourceSection].join(
+            " "
+          )
+        )
+    );
+  })();
 
   useEffect(() => {
     localStorage.setItem(STUDENT_BATCHES_KEY, JSON.stringify(batches));
@@ -235,18 +545,31 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
       return;
     }
 
+    const resolvedBatchYear = selectedBatch?.batchYear || sectioningBatchYear;
+    const matchingSourceBatch = batches.find(
+      (batch) =>
+        batch.program === chairpersonDepartment &&
+        batch.batchYear === resolvedBatchYear &&
+        (batch.students || []).length > 0 &&
+        batch.status !== "Promoted"
+    );
+    const sourceImportedBatch =
+      departmentBatches.find((batch) => batch.key === activeBatchKey) ||
+      departmentBatches.find((batch) => batch.batchYear === resolvedBatchYear) ||
+      matchingSourceBatch ||
+      null;
     const workspaceKey = selectedBatch
       ? activeBatchKey
-      : [chairpersonDepartment, sectioningBatchYear, "sectioning"].join("|");
+      : [chairpersonDepartment, resolvedBatchYear, "sectioning"].join("|");
     const createdAt = new Date().toISOString();
     const workspaceId = Number(createdAt.replace(/\D/g, "").slice(0, 13));
-    const workspace =
+    const baseWorkspace =
       selectedBatch ||
       departmentWorkspaces.find((batch) => batch.key === workspaceKey) || {
         id: workspaceId,
         key: workspaceKey,
         program: chairpersonDepartment,
-        batchYear: sectioningBatchYear,
+        batchYear: resolvedBatchYear,
         submittedTo: `${chairpersonDepartment} Chairperson`,
         fileName: "Chairperson sectioning workspace",
         submittedAt: createdAt,
@@ -255,11 +578,44 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
         sectionPlans: [],
         removedStudents: [],
       };
+    const sourceStudents =
+      (baseWorkspace.students || []).length > 0
+        ? baseWorkspace.students || []
+        : sourceImportedBatch?.students || [];
+    const workspace = {
+      ...baseWorkspace,
+      students: sourceStudents,
+    };
+
+    if (!workspace.students.length) {
+      alert(
+        "No students were found for this batch year. Make sure the registrar has forwarded the student list first."
+      );
+      return;
+    }
     const generatedSections = buildGeneratedSections({
       program: workspace.program,
       yearLevel: selectedYearLevel,
       sectionCount: requestedSectionCount,
     });
+    const studentsForYear = (workspace.students || []).filter(
+      (student) => (student.yearLevel || selectedYearLevel) === selectedYearLevel
+    );
+    const assignedStudentsById = new Map(
+      studentsForYear.map((student, index) => {
+        const targetSection = generatedSections[index % generatedSections.length];
+
+        return [
+          student.studentId,
+          {
+            ...student,
+            yearLevel: selectedYearLevel,
+            sectionCode: targetSection.sectionCode,
+            sectionName: targetSection.sectionName,
+          },
+        ];
+      })
+    );
 
     const nextWorkspace = {
       ...workspace,
@@ -270,7 +626,9 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
         ),
         ...generatedSections,
       ],
-      students: workspace.students || [],
+      students: (workspace.students || []).map((student) =>
+        assignedStudentsById.get(student.studentId) || student
+      ),
       lastSectionedAt: new Date().toISOString(),
     };
 
@@ -541,130 +899,521 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
     );
   };
 
-  const handleUploadSectionCsv = (sectionCode, file) => {
-    if (!selectedBatch || !file) return;
-
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-      alert("Please upload the section roster in CSV format.");
-      return;
-    }
-
-    const targetSection = sectionPlans.find(
-      (section) => section.sectionCode === sectionCode
-    );
-
-    if (!targetSection) {
-      alert("Selected section was not found.");
-      return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onload = (event) => {
-      const text = event.target?.result;
-
-      if (!text) {
-        alert("Unable to read the uploaded CSV file.");
-        return;
-      }
-
-      const parsedStudents = parseStudentIdSpreadsheet(text);
-
-      if (!parsedStudents.length) {
-        alert(
-          "The section CSV must contain Student ID, Sex, Last Name, First Name, and Middle Initial columns with valid rows."
-        );
-        return;
-      }
-
-      const parsedById = new Map(
-        parsedStudents.map((student) => [
-          student.studentId.toLowerCase(),
-          student,
-        ])
-      );
-      const targetSectionName =
-        targetSection.sectionName ||
-        getDefaultSectionName(selectedBatch.program, targetSection.sectionCode);
-      const targetYearLevel = targetSection.yearLevel || selectedYearLevel;
-      const existingAssignedSectionById = new Map(
-        (selectedBatch.students || []).map((student) => [
-          student.studentId.toLowerCase(),
-          student.sectionCode || "",
-        ])
-      );
-      const skippedAssignedStudents = parsedStudents.filter((student) => {
-        const assignedSection = existingAssignedSectionById.get(
-          student.studentId.toLowerCase()
-        );
-
-        return assignedSection && assignedSection !== targetSection.sectionCode;
-      });
-
-      updateSelectedBatch((batch) => {
-        const existingIds = new Set(
-          (batch.students || []).map((student) => student.studentId.toLowerCase())
-        );
-        const updatedStudents = (batch.students || []).map((student) => {
-          const parsedStudent = parsedById.get(student.studentId.toLowerCase());
-
-          if (parsedStudent) {
-            const isAlreadyInAnotherSection =
-              student.sectionCode && student.sectionCode !== targetSection.sectionCode;
-
-            if (isAlreadyInAnotherSection) {
-              return student;
-            }
-
-            return {
-              ...student,
-              ...parsedStudent,
-              yearLevel: targetYearLevel,
-              sectionCode: targetSection.sectionCode,
-              sectionName: targetSectionName,
-            };
-          }
-
-          return student;
-        });
-
-        const newStudents = parsedStudents
-          .filter(
-            (student) => !existingIds.has(student.studentId.toLowerCase())
-          )
-          .map((student) => ({
-            ...student,
-            yearLevel: targetYearLevel,
-            sectionCode: targetSection.sectionCode,
-            sectionName: targetSectionName,
-            addedFromSectionCsv: true,
-          }));
-
-        return {
-          ...batch,
-          students: [...updatedStudents, ...newStudents],
-          lastSectionedAt: new Date().toISOString(),
-        };
-      });
-
-      if (skippedAssignedStudents.length) {
-        alert(
-          `Section roster updated from CSV. ${skippedAssignedStudents.length} student ID(s) were already assigned to another section, so they were not moved.`
-        );
-        return;
-      }
-
-      alert("Section roster updated from CSV.");
-    };
-
-    reader.readAsText(file);
-  };
-
   const handleSaveSectioning = () => {
     localStorage.setItem(STUDENT_BATCHES_KEY, JSON.stringify(batches));
     syncSectionedStudentsToStorage(batches);
     onSectioningSaved?.();
     alert("Final section rosters saved successfully.");
+  };
+
+  const persistSectioningData = (nextBatches, nextGraduatingStudents) => {
+    setBatches(nextBatches);
+    setGraduatingStudents(nextGraduatingStudents);
+    localStorage.setItem(STUDENT_BATCHES_KEY, JSON.stringify(nextBatches));
+    localStorage.setItem(
+      GRADUATING_STUDENTS_KEY,
+      JSON.stringify(nextGraduatingStudents)
+    );
+    syncSectionedStudentsToStorage(nextBatches);
+    onSectioningSaved?.();
+  };
+
+  const persistIrregularAssignments = (nextBatches, nextAssignments) => {
+    setBatches(nextBatches);
+    setIrregularSubjectAssignments(nextAssignments);
+    localStorage.setItem(STUDENT_BATCHES_KEY, JSON.stringify(nextBatches));
+    localStorage.setItem(
+      IRREGULAR_SUBJECTS_KEY,
+      JSON.stringify(nextAssignments)
+    );
+    syncSectionedStudentsToStorage(nextBatches);
+    onSectioningSaved?.();
+  };
+
+  const handlePromoteStudents = () => {
+    if (!currentRolloverBatches.length) {
+      alert("No saved section lists are ready for promotion.");
+      return;
+    }
+
+    const allPromotedStudents = [];
+    const allGraduatingReviewList = [];
+    const targetBatches = [];
+
+    currentRolloverBatches.forEach((sourceBatch) => {
+      const promotedStudents = [];
+      const promotedSectionsByCode = new Map();
+      const graduatingReviewList = [];
+
+      (sourceBatch.students || []).forEach((student) => {
+        const nextYearLevel = getNextYearLevel(student.yearLevel);
+        const currentSectionCode = student.sectionCode || "";
+
+        if (!nextYearLevel) {
+          graduatingReviewList.push({
+            ...student,
+            program: sourceBatch.program,
+            sourceBatchKey: sourceBatch.key,
+            sourceSchoolYear: sourceBatch.batchYear,
+            originBatchYear: sourceBatch.batchYear,
+            originYearLevel: student.yearLevel,
+            originSectionCode: student.sectionCode || "",
+            originSectionName: student.sectionName || "",
+            targetSchoolYear: sourceBatch.batchYear,
+            targetSemester,
+            status: (student.irregularSubjects || []).some(
+              (subject) => (subject.status || "Pending") !== "Completed"
+            )
+              ? "Returning Student"
+              : student.status || "Incomplete",
+            studentType: student.studentType || "Regular",
+            remarks: student.remarks || "",
+            repeatedSubjects: student.repeatedSubjects || "",
+            irregularSubjects: student.irregularSubjects || [],
+            reviewedAt: "",
+          });
+          return;
+        }
+
+        const nextSectionCode = getNextSectionCode(
+          currentSectionCode,
+          nextYearLevel
+        );
+        const nextSectionName = nextSectionCode
+          ? getDefaultSectionName(sourceBatch.program, nextSectionCode)
+          : "";
+
+        if (nextSectionCode && !promotedSectionsByCode.has(nextSectionCode)) {
+          promotedSectionsByCode.set(nextSectionCode, {
+            id: `${sourceBatch.batchYear}-${targetSemester}-${nextSectionCode}`,
+            sectionCode: nextSectionCode,
+            sectionName: nextSectionName,
+            yearLevel: nextYearLevel,
+          });
+        }
+
+        promotedStudents.push({
+          ...student,
+          yearLevel: nextYearLevel,
+          sectionCode: nextSectionCode,
+          sectionName: nextSectionName,
+          semester: targetSemester,
+          studentType: student.studentType || "Regular",
+          remarks: student.remarks || "",
+          repeatedSubjects: student.repeatedSubjects || "",
+          irregularSubjects: student.irregularSubjects || [],
+          originBatchYear: sourceBatch.batchYear,
+          originYearLevel: student.yearLevel,
+          originSectionCode: student.sectionCode || "",
+          originSectionName: student.sectionName || "",
+          promotedFromYearLevel: student.yearLevel,
+          promotedFromSectionCode: student.sectionCode || "",
+          promotedFromSectionName: student.sectionName || "",
+          promotedFromSchoolYear: sourceBatch.batchYear,
+          promotedFromBatchKey: sourceBatch.key,
+          promotedAt: new Date().toISOString(),
+        });
+      });
+
+      allPromotedStudents.push(...promotedStudents);
+      allGraduatingReviewList.push(...graduatingReviewList);
+
+      if (!promotedStudents.length) return;
+
+      const targetBatchKey = [
+        sourceBatch.program,
+        sourceBatch.batchYear,
+        targetSemester,
+        "promotion",
+      ].join("|");
+      const createdAt = new Date().toISOString();
+
+      targetBatches.push({
+        id: Number(`${createdAt.replace(/\D/g, "").slice(0, 13)}${targetBatches.length}`),
+        key: targetBatchKey,
+        program: sourceBatch.program,
+        batchYear: sourceBatch.batchYear,
+        semester: targetSemester,
+        submittedTo: `${sourceBatch.program} Chairperson`,
+        fileName: "Academic year promoted section list",
+        submittedAt: createdAt,
+        status: "Sectioning",
+        students: promotedStudents,
+        sectionPlans: Array.from(promotedSectionsByCode.values()),
+        removedStudents: [],
+        promotedFromBatchKey: sourceBatch.key,
+        lastSectionedAt: createdAt,
+      });
+    });
+
+    const reviewKeys = new Set(
+      allGraduatingReviewList.map(
+        (student) =>
+          `${student.studentId}|${student.targetSchoolYear}|${student.targetSemester}`
+      )
+    );
+    const nextGraduatingStudents = [
+      ...graduatingStudents.filter(
+        (student) =>
+          !reviewKeys.has(
+            `${student.studentId}|${student.targetSchoolYear}|${student.targetSemester}`
+          )
+      ),
+      ...allGraduatingReviewList,
+    ];
+    const targetBatchKeys = new Set(targetBatches.map((batch) => batch.key));
+    const promotedStudentLookup = new Map(
+      targetBatches.flatMap((batch) =>
+        (batch.students || []).map((student) => [
+          student.studentId,
+          { batch, student },
+        ])
+      )
+    );
+    const nextIrregularAssignments = irregularSubjectAssignments.map(
+      (assignment) => {
+        const promotedRecord = promotedStudentLookup.get(assignment.studentId);
+
+        if (!promotedRecord) return assignment;
+
+        return {
+          ...assignment,
+          batchKey: promotedRecord.batch.key,
+          mainBatchYear: promotedRecord.batch.batchYear,
+          mainYearLevel: promotedRecord.student.yearLevel,
+          mainSection: promotedRecord.student.sectionName || "",
+          mainSectionCode: promotedRecord.student.sectionCode || "",
+        };
+      }
+    );
+    const sourceBatchKeys = new Set(
+      currentRolloverBatches.map((batch) => batch.key)
+    );
+    const promotedToBySourceKey = Object.fromEntries(
+      targetBatches.map((batch) => [batch.promotedFromBatchKey, batch.key])
+    );
+    const archivedSourceBatches = batches
+      .filter((batch) => sourceBatchKeys.has(batch.key))
+      .map((batch) => ({
+        ...batch,
+        status: "Promoted",
+        promotedAt: new Date().toISOString(),
+        promotedToBatchKey: promotedToBySourceKey[batch.key] || "",
+      }));
+    const nextBatches = [
+      ...batches.filter(
+        (batch) => !targetBatchKeys.has(batch.key) && !sourceBatchKeys.has(batch.key)
+      ),
+      ...archivedSourceBatches,
+      ...targetBatches,
+    ];
+
+    persistSectioningData(nextBatches, nextGraduatingStudents);
+    setIrregularSubjectAssignments(nextIrregularAssignments);
+    localStorage.setItem(
+      IRREGULAR_SUBJECTS_KEY,
+      JSON.stringify(nextIrregularAssignments)
+    );
+    const firstTargetBatch = targetBatches[0] || null;
+    setSelectedBatchKey(firstTargetBatch?.key || "");
+    setSectioningBatchYear(firstTargetBatch?.batchYear || sectioningBatchYear);
+    setSelectedYearLevel(firstTargetBatch?.sectionPlans[0]?.yearLevel || "2nd Year");
+    setSelectedSectionCode(firstTargetBatch?.sectionPlans[0]?.sectionCode || "");
+    setPromotionSummary({
+      promoted: allPromotedStudents.length,
+      sections: targetBatches.reduce(
+        (total, batch) => total + (batch.sectionPlans || []).length,
+        0
+      ),
+      graduating: allGraduatingReviewList.length,
+      irregular: allPromotedStudents.filter(
+        (student) => student.studentType === "Irregular"
+      ).length,
+      batches: currentRolloverBatches.length,
+    });
+  };
+
+  const getStudentFromKey = (studentKey = "") => {
+    const [batchKey, studentId] = studentKey.split("|");
+    const batch = batches.find((item) => item.key === batchKey);
+    const student = (batch?.students || []).find(
+      (item) => item.studentId === studentId
+    );
+
+    return { batch, batchKey, student, studentId };
+  };
+
+  const handleAssignIrregularSubject = () => {
+    const { batch, batchKey, student, studentId } = getStudentFromKey(
+      irregularSubjectForm.studentKey
+    );
+    const subjectAssignment = departmentAssignments.find(
+      (assignment) =>
+        String(assignment.id) === irregularSubjectForm.subjectAssignmentId
+    );
+    const assignedSection = availableIrregularSections.find(
+      (section) => section.label === irregularSubjectForm.assignedSection
+    );
+    const sectionSubjectAssignment =
+      departmentAssignments.find(
+        (assignment) =>
+          assignment.subjectCode === subjectAssignment?.subjectCode &&
+          assignment.sectionName === irregularSubjectForm.assignedSection
+      ) || subjectAssignment;
+
+    if (!batch || !student || !subjectAssignment || !assignedSection || !sectionSubjectAssignment) {
+      alert("Please choose the student, repeated subject, and assigned section.");
+      return;
+    }
+
+    const nextSubject = {
+      id: buildIrregularSubjectKey(),
+      subjectCode: subjectAssignment.subjectCode,
+      subjectTitle: subjectAssignment.subjectTitle,
+      assignedSection: assignedSection.label,
+      assignedSectionCode: assignedSection.sectionCode,
+      faculty: sectionSubjectAssignment.facultyName,
+      facultyId: sectionSubjectAssignment.facultyId,
+      semester: sectionSubjectAssignment.semester || "",
+      schoolYear: sectionSubjectAssignment.schoolYear || batch.batchYear,
+      remarks: irregularSubjectForm.remarks.trim(),
+      status: "Pending",
+      assignedAt: new Date().toISOString(),
+    };
+
+    const nextBatches = batches.map((item) =>
+      item.key === batchKey
+        ? {
+            ...item,
+            students: (item.students || []).map((batchStudent) =>
+              batchStudent.studentId === studentId
+                ? {
+                    ...batchStudent,
+                    studentType: "Irregular",
+                    irregularSubjects: [
+                      ...(batchStudent.irregularSubjects || []),
+                      nextSubject,
+                    ],
+                  }
+                : batchStudent
+            ),
+            lastSectionedAt: new Date().toISOString(),
+          }
+        : item
+    );
+    const nextAssignments = [
+      ...irregularSubjectAssignments,
+      {
+        ...nextSubject,
+        studentId,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        middleInitial: student.middleInitial || "",
+        sex: student.sex || "",
+        program: batch.program,
+        mainBatchYear: batch.batchYear,
+        mainYearLevel: student.yearLevel,
+        mainSection: student.sectionName || "",
+        mainSectionCode: student.sectionCode || "",
+        batchKey,
+      },
+    ];
+
+    persistIrregularAssignments(nextBatches, nextAssignments);
+    setIrregularSubjectForm({
+      studentKey: "",
+      subjectAssignmentId: "",
+      assignedSection: "",
+      faculty: "",
+      remarks: "",
+    });
+  };
+
+  const handleTransferSubjectSection = () => {
+    const { batch, batchKey, student, studentId } = getStudentFromKey(
+      transferSubjectForm.studentKey
+    );
+    const targetSection = availableIrregularSections.find(
+      (section) => section.label === transferSubjectForm.newSection
+    );
+    const currentSubject = (student?.irregularSubjects || []).find(
+      (subject) => subject.id === transferSubjectForm.irregularSubjectId
+    );
+    const newSubjectAssignment = departmentAssignments.find(
+      (assignment) =>
+        assignment.subjectCode === currentSubject?.subjectCode &&
+        assignment.sectionName === transferSubjectForm.newSection
+    );
+
+    if (!batch || !student || !transferSubjectForm.irregularSubjectId || !targetSection) {
+      alert("Please choose the student, repeated subject, and new section.");
+      return;
+    }
+
+    const nextBatches = batches.map((item) =>
+      item.key === batchKey
+        ? {
+            ...item,
+            students: (item.students || []).map((batchStudent) =>
+              batchStudent.studentId === studentId
+                ? {
+                    ...batchStudent,
+                    irregularSubjects: (batchStudent.irregularSubjects || []).map(
+                      (subject) =>
+                        subject.id === transferSubjectForm.irregularSubjectId
+                          ? {
+                              ...subject,
+                              assignedSection: targetSection.label,
+                              assignedSectionCode: targetSection.sectionCode,
+                              faculty:
+                                newSubjectAssignment?.facultyName ||
+                                subject.faculty,
+                              facultyId:
+                                newSubjectAssignment?.facultyId ||
+                                subject.facultyId,
+                              transferReason: transferSubjectForm.reason.trim(),
+                              transferredAt: new Date().toISOString(),
+                            }
+                          : subject
+                    ),
+                  }
+                : batchStudent
+            ),
+            lastSectionedAt: new Date().toISOString(),
+          }
+        : item
+    );
+    const nextAssignments = irregularSubjectAssignments.map((assignment) =>
+      assignment.id === transferSubjectForm.irregularSubjectId
+        ? {
+            ...assignment,
+            assignedSection: targetSection.label,
+            assignedSectionCode: targetSection.sectionCode,
+            faculty: newSubjectAssignment?.facultyName || assignment.faculty,
+            facultyId: newSubjectAssignment?.facultyId || assignment.facultyId,
+            transferReason: transferSubjectForm.reason.trim(),
+            transferredAt: new Date().toISOString(),
+          }
+        : assignment
+    );
+
+    persistIrregularAssignments(nextBatches, nextAssignments);
+    setTransferSubjectForm({
+      studentKey: "",
+      irregularSubjectId: "",
+      newSection: "",
+      reason: "",
+    });
+  };
+
+  const handleResolveCompletedSubject = (batchKey, studentId, subjectId) => {
+    const nextBatches = batches.map((item) =>
+      item.key === batchKey
+        ? {
+            ...item,
+            students: (item.students || []).map((student) =>
+              student.studentId === studentId
+                ? {
+                    ...student,
+                    irregularSubjects: (student.irregularSubjects || []).map(
+                      (subject) =>
+                        subject.id === subjectId
+                          ? {
+                              ...subject,
+                              status: "Completed",
+                              completedAt: new Date().toISOString(),
+                            }
+                          : subject
+                    ),
+                  }
+                : student
+            ),
+          }
+        : item
+    );
+    const nextAssignments = irregularSubjectAssignments.map((assignment) =>
+      assignment.id === subjectId
+        ? {
+            ...assignment,
+            status: "Completed",
+            completedAt: new Date().toISOString(),
+          }
+        : assignment
+    );
+
+    persistIrregularAssignments(nextBatches, nextAssignments);
+  };
+
+  const handleGraduatingStatusChange = (studentId, updates) => {
+    const nextGraduatingStudents = graduatingStudents.map((student) =>
+      student.studentId === studentId ? { ...student, ...updates } : student
+    );
+
+    persistSectioningData(batches, nextGraduatingStudents);
+  };
+
+  const handleBulkGraduatingStatusChange = (status) => {
+    if (!visibleGraduatingStudents.length) {
+      alert("No visible fourth-year students to update.");
+      return;
+    }
+
+    const visibleStudentIds = new Set(
+      visibleGraduatingStudents.map((student) => student.studentId)
+    );
+    const nextGraduatingStudents = graduatingStudents.map((student) =>
+      visibleStudentIds.has(student.studentId)
+        ? {
+            ...student,
+            status,
+            reviewedAt: new Date().toISOString(),
+          }
+        : student
+    );
+
+    persistSectioningData(batches, nextGraduatingStudents);
+  };
+
+  const handleGraduatingSectionStatusChange = (sectionStudents, status) => {
+    const sectionStudentIds = new Set(
+      sectionStudents.map((student) => student.studentId)
+    );
+    const nextGraduatingStudents = graduatingStudents.map((student) =>
+      sectionStudentIds.has(student.studentId)
+        ? {
+            ...student,
+            status,
+            reviewedAt: new Date().toISOString(),
+          }
+        : student
+    );
+
+    persistSectioningData(batches, nextGraduatingStudents);
+  };
+
+  const handleDeleteGraduatingBatch = (batchGroup) => {
+    const confirmed = window.confirm(
+      `Delete graduation review records for Batch ${batchGroup.batchYear}?`
+    );
+
+    if (!confirmed) return;
+
+    const nextGraduatingStudents = graduatingStudents.filter(
+      (student) =>
+        !(
+          student.program === chairpersonDepartment &&
+          getGraduatingBatchKey(student) === batchGroup.key
+        )
+    );
+
+    persistSectioningData(batches, nextGraduatingStudents);
+  };
+
+  const toggleGraduatingSection = (sectionKey) => {
+    setExpandedGraduatingSections((current) => ({
+      ...current,
+      [sectionKey]: !current[sectionKey],
+    }));
   };
 
   return (
@@ -680,8 +1429,8 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
             </h3>
             <p className="mt-2 max-w-3xl text-sm text-slate-500">
               Work from the enrolled list forwarded by the registrar, generate
-              sections per year level, update each roster from CSV, and save the
-              final rosters for academic assignment.
+              sections per year level, automatically distribute students, and
+              save the final rosters for academic assignment.
             </p>
           </div>
 
@@ -696,12 +1445,709 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
         </div>
       </div>
 
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+          {[
+            ["sectioning", "Section Lists"],
+            ["promotion", "Promote to Next Year"],
+            ["graduating", "Review 4th Year Students"],
+            ["irregular", "Review Irregular Students"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => {
+                setActiveWorkspace(id);
+                setStudentSearch("");
+              }}
+              className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                activeWorkspace === id
+                  ? "bg-[#003366] text-white shadow-sm"
+                  : "border border-slate-200 text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeWorkspace === "promotion" ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h3 className="text-xl font-bold text-[#003366]">
+                Academic Year Promotion
+              </h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Promote all current section lists for this department in one
+                rollover. Batch year stays visible as the student origin.
+              </p>
+            </div>
+            <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
+              Chairperson Rollover
+            </span>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-700">
+                {promotionSourceSections.reduce(
+                  (total, section) => total + section.students.length,
+                  0
+                )}{" "}
+                students across {currentRolloverBatches.length} batch
+                {currentRolloverBatches.length === 1 ? "" : "es"} ready for
+                rollover
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                1st Year to 3rd Year advance automatically; 4th Year moves to
+                the graduating review list.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handlePromoteStudents}
+              className="rounded-xl bg-[#003366] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#00264d]"
+            >
+              Promote All to Next Academic Year
+            </button>
+          </div>
+
+          {promotionSummary ? (
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">Total Promoted Students</p>
+                <p className="mt-1 text-2xl font-bold text-[#003366]">
+                  {promotionSummary.promoted}
+                </p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">Total Promoted Sections</p>
+                <p className="mt-1 text-2xl font-bold text-[#003366]">
+                  {promotionSummary.sections}
+                </p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">
+                  Irregular Students Carried Over
+                </p>
+                <p className="mt-1 text-2xl font-bold text-[#003366]">
+                  {promotionSummary.irregular}
+                </p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">
+                  4th Year to Graduation Review
+                </p>
+                <p className="mt-1 text-2xl font-bold text-[#003366]">
+                  {promotionSummary.graduating}
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {activeWorkspace === "graduating" ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h3 className="text-xl font-bold text-[#003366]">
+                Graduating Review List
+              </h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Review by section. Mark a whole section at once, then open the
+                student list only for exceptions.
+              </p>
+            </div>
+            <input
+              type="text"
+              value={studentSearch}
+              onChange={(event) => setStudentSearch(event.target.value)}
+              placeholder="Search fourth-year students..."
+              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#003366] lg:max-w-xs"
+            />
+          </div>
+
+          <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
+            {[
+              ["Needs Checking", graduatingReviewStats.needsChecking],
+              ["All", graduatingReviewStats.all],
+              ["Graduated", graduatingReviewStats.graduated],
+              ["Incomplete", graduatingReviewStats.incomplete],
+              ["Returning Student", graduatingReviewStats.returning],
+              [
+                "Irregular Completion",
+                graduatingReviewStats.irregularCompletion,
+              ],
+            ].map(([status, count]) => (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setGraduatingStatusFilter(status)}
+                className={`rounded-xl border p-4 text-left transition ${
+                  graduatingStatusFilter === status
+                    ? "border-[#003366] bg-[#003366]/5"
+                    : "border-slate-200 bg-slate-50 hover:bg-white"
+                }`}
+              >
+                <p className="text-xs font-semibold uppercase text-slate-500">
+                  {status}
+                </p>
+                <p className="mt-1 text-2xl font-bold text-[#003366]">
+                  {count}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          <div className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <span className="mr-2 text-sm font-semibold text-slate-700">
+              Update visible:
+            </span>
+            {GRADUATING_STATUSES.map((status) => (
+              <button
+                key={status}
+                type="button"
+                onClick={() => handleBulkGraduatingStatusChange(status)}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:border-[#003366] hover:text-[#003366]"
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-5">
+            {graduatingBatchGroups.length ? (
+              graduatingBatchGroups.map((batchGroup) => (
+                <article
+                  key={batchGroup.key}
+                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                >
+                  <div className="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-slate-500">
+                        Graduation Review Batch
+                      </p>
+                      <h4 className="mt-1 text-lg font-bold text-[#003366]">
+                        Batch {batchGroup.batchYear}
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {batchGroup.reviewYear} • {batchGroup.students.length} student
+                        {batchGroup.students.length === 1 ? "" : "s"} across{" "}
+                        {batchGroup.sections.length} section
+                        {batchGroup.sections.length === 1 ? "" : "s"}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteGraduatingBatch(batchGroup)}
+                        className="rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+                      >
+                        Delete Batch
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {batchGroup.sections.map((section) => (
+                      <div
+                        key={section.key}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                      >
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                          <div>
+                            <p className="text-xs font-semibold uppercase text-slate-500">
+                              {section.origin}
+                            </p>
+                            <h4 className="mt-1 text-lg font-bold text-[#003366]">
+                              {section.sectionName}
+                            </h4>
+                            <p className="mt-1 text-sm text-slate-500">
+                              {section.students.length} student
+                              {section.students.length === 1 ? "" : "s"} for review
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            {GRADUATING_STATUSES.map((status) => (
+                              <button
+                                key={status}
+                                type="button"
+                                onClick={() =>
+                                  handleGraduatingSectionStatusChange(
+                                    section.students,
+                                    status
+                                  )
+                                }
+                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-[#003366] hover:text-[#003366]"
+                              >
+                                {status}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+                          <div className="rounded-xl bg-white p-4">
+                            <p className="text-sm text-slate-500">
+                              Needs Checking
+                            </p>
+                            <p className="mt-1 text-2xl font-bold text-[#003366]">
+                              {
+                                section.students.filter(needsGraduatingReview)
+                                  .length
+                              }
+                            </p>
+                          </div>
+                          {GRADUATING_STATUSES.slice(0, 3).map((status) => (
+                            <div key={status} className="rounded-xl bg-white p-4">
+                              <p className="text-sm text-slate-500">{status}</p>
+                              <p className="mt-1 text-2xl font-bold text-[#003366]">
+                                {
+                                  section.students.filter(
+                                    (student) =>
+                                      (student.status || "Incomplete") === status
+                                  ).length
+                                }
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-4">
+                          <button
+                            type="button"
+                            onClick={() => toggleGraduatingSection(section.key)}
+                            className="rounded-lg border border-[#003366] bg-white px-3 py-2 text-sm font-semibold text-[#003366] hover:bg-[#003366] hover:text-white"
+                          >
+                            {expandedGraduatingSections[section.key]
+                              ? "Hide Students"
+                              : "View Students"}
+                          </button>
+                        </div>
+
+                        {expandedGraduatingSections[section.key] ? (
+                          <div className="mt-4 overflow-x-auto">
+                          <table className="min-w-full">
+                            <thead>
+                              <tr className="bg-[#003366] text-white">
+                                <th className="px-4 py-3 text-left text-sm">Student</th>
+                                <th className="px-4 py-3 text-left text-sm">Origin</th>
+                                <th className="px-4 py-3 text-left text-sm">Status</th>
+                                <th className="px-4 py-3 text-left text-sm">Remarks</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {section.students.map((student) => (
+                                <tr
+                                  key={`${student.studentId}-${student.targetSchoolYear}`}
+                                  className="border-b bg-white"
+                                >
+                                  <td className="px-4 py-3">
+                                    <p className="font-semibold text-slate-800">
+                                      {student.studentId}
+                                    </p>
+                                    <p className="text-sm text-slate-500">
+                                      {buildStudentName(student)}
+                                    </p>
+                                  </td>
+                                  <td className="px-4 py-3 text-slate-700">
+                                    Batch {student.originBatchYear || student.sourceSchoolYear}
+                                    <span className="block text-xs text-slate-500">
+                                      {student.originYearLevel || student.yearLevel}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <select
+                                      value={student.status || "Incomplete"}
+                                      onChange={(event) =>
+                                        handleGraduatingStatusChange(student.studentId, {
+                                          status: event.target.value,
+                                          reviewedAt: new Date().toISOString(),
+                                        })
+                                      }
+                                      className="min-w-48 rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#003366]"
+                                    >
+                                      {GRADUATING_STATUSES.map((status) => (
+                                        <option key={status} value={status}>
+                                          {status}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <input
+                                      type="text"
+                                      value={student.remarks || ""}
+                                      onChange={(event) =>
+                                        handleGraduatingStatusChange(student.studentId, {
+                                          remarks: event.target.value,
+                                        })
+                                      }
+                                      placeholder="Review note"
+                                      className="min-w-64 rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#003366]"
+                                    />
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
+                No fourth-year students match this review filter.
+              </div>
+            )}
+          </div>
+        </section>
+      ) : null}
+
+      {activeWorkspace === "irregular" ? (
+        <section className="space-y-6">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5">
+              <h3 className="text-xl font-bold text-[#003366]">
+                Irregular Subject Assignment
+              </h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Keep the student in their official year level and main section,
+                then attach only the repeated subject to a lower-year class.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+              <select
+                value={irregularSubjectForm.studentKey}
+                onChange={(event) =>
+                  setIrregularSubjectForm((current) => ({
+                    ...current,
+                    studentKey: event.target.value,
+                  }))
+                }
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#003366] xl:col-span-2"
+              >
+                <option value="">Select student</option>
+                {departmentActiveStudents.map((student) => (
+                  <option
+                    key={`${student.batchKey}-${student.studentId}`}
+                    value={`${student.batchKey}|${student.studentId}`}
+                  >
+                    {student.studentId} - {buildStudentName(student)} (
+                    {student.yearLevel}, {student.sectionName || "Unassigned"})
+                  </option>
+                ))}
+              </select>
+              <select
+                value={irregularSubjectForm.subjectAssignmentId}
+                onChange={(event) => {
+                  const assignment = departmentAssignments.find(
+                    (item) => String(item.id) === event.target.value
+                  );
+                  setIrregularSubjectForm((current) => ({
+                    ...current,
+                    subjectAssignmentId: event.target.value,
+                    assignedSection: assignment?.sectionName || "",
+                    faculty: assignment?.facultyName || "",
+                  }));
+                }}
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#003366] xl:col-span-2"
+              >
+                <option value="">Select repeated subject</option>
+                {departmentAssignments.map((assignment) => (
+                  <option key={assignment.id} value={assignment.id}>
+                    {assignment.subjectCode} - {assignment.subjectTitle} /{" "}
+                    {assignment.sectionName}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={irregularSubjectForm.assignedSection}
+                onChange={(event) =>
+                  setIrregularSubjectForm((current) => ({
+                    ...current,
+                    assignedSection: event.target.value,
+                  }))
+                }
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#003366]"
+              >
+                <option value="">Assigned section</option>
+                {availableIrregularSections.map((section) => (
+                  <option
+                    key={`${section.batchKey}-${section.sectionCode}`}
+                    value={section.label}
+                  >
+                    {section.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={irregularSubjectForm.faculty}
+                readOnly
+                placeholder="Faculty"
+                className="rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none xl:col-span-2"
+              />
+              <input
+                type="text"
+                value={irregularSubjectForm.remarks}
+                onChange={(event) =>
+                  setIrregularSubjectForm((current) => ({
+                    ...current,
+                    remarks: event.target.value,
+                  }))
+                }
+                placeholder="Remarks"
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#003366] xl:col-span-2"
+              />
+              <button
+                type="button"
+                onClick={handleAssignIrregularSubject}
+                className="rounded-xl bg-[#003366] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#00264d]"
+              >
+                Assign Repeated Subject
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-xl font-bold text-[#003366]">
+              Transfer Subject Section
+            </h3>
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+              <select
+                value={transferSubjectForm.studentKey}
+                onChange={(event) =>
+                  setTransferSubjectForm({
+                    studentKey: event.target.value,
+                    irregularSubjectId: "",
+                    newSection: "",
+                    reason: "",
+                  })
+                }
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#003366] xl:col-span-2"
+              >
+                <option value="">Student</option>
+                {departmentIrregularStudents.map((student) => (
+                  <option
+                    key={`${student.batchKey}-${student.studentId}`}
+                    value={`${student.batchKey}|${student.studentId}`}
+                  >
+                    {student.studentId} - {buildStudentName(student)}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={transferSubjectForm.irregularSubjectId}
+                onChange={(event) =>
+                  setTransferSubjectForm((current) => ({
+                    ...current,
+                    irregularSubjectId: event.target.value,
+                  }))
+                }
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#003366]"
+              >
+                <option value="">Repeated subject</option>
+                {(
+                  getStudentFromKey(transferSubjectForm.studentKey).student
+                    ?.irregularSubjects || []
+                )
+                  .filter((subject) => (subject.status || "Pending") !== "Completed")
+                  .map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.subjectCode} - {subject.assignedSection}
+                    </option>
+                  ))}
+              </select>
+
+              <input
+                type="text"
+                readOnly
+                value={
+                  (
+                    getStudentFromKey(transferSubjectForm.studentKey).student
+                      ?.irregularSubjects || []
+                  ).find(
+                    (subject) =>
+                      subject.id === transferSubjectForm.irregularSubjectId
+                  )?.assignedSection || ""
+                }
+                placeholder="Current section"
+                className="rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none"
+              />
+
+              <select
+                value={transferSubjectForm.newSection}
+                onChange={(event) =>
+                  setTransferSubjectForm((current) => ({
+                    ...current,
+                    newSection: event.target.value,
+                  }))
+                }
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#003366]"
+              >
+                <option value="">New section</option>
+                {availableIrregularSections.map((section) => (
+                  <option
+                    key={`${section.batchKey}-${section.sectionCode}`}
+                    value={section.label}
+                  >
+                    {section.label}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="text"
+                value={transferSubjectForm.reason}
+                onChange={(event) =>
+                  setTransferSubjectForm((current) => ({
+                    ...current,
+                    reason: event.target.value,
+                  }))
+                }
+                placeholder="Reason"
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#003366]"
+              />
+
+              <button
+                type="button"
+                onClick={handleTransferSubjectSection}
+                className="rounded-xl bg-[#003366] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#00264d]"
+              >
+                Transfer Subject Section
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-[#003366]">
+                  Active Irregular Subject Records
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Official section stays unchanged. Only the repeated subject
+                  assignment moves.
+                </p>
+              </div>
+              <input
+                type="text"
+                value={studentSearch}
+                onChange={(event) => setStudentSearch(event.target.value)}
+                placeholder="Search irregular records..."
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#003366] lg:max-w-xs"
+              />
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-[#003366] text-white">
+                    <th className="px-4 py-3 text-left text-sm">Student</th>
+                    <th className="px-4 py-3 text-left text-sm">Official Record</th>
+                    <th className="px-4 py-3 text-left text-sm">Repeated Subject</th>
+                    <th className="px-4 py-3 text-left text-sm">Subject Section</th>
+                    <th className="px-4 py-3 text-left text-sm">Faculty</th>
+                    <th className="px-4 py-3 text-left text-sm">Remarks</th>
+                    <th className="px-4 py-3 text-left text-sm">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {irregularSubjectAssignments
+                    .filter((assignment) => assignment.program === chairpersonDepartment)
+                    .filter((assignment) => {
+                      if (!searchValue) return true;
+
+                      return (
+                        assignment.studentId.toLowerCase().includes(searchValue) ||
+                        [assignment.lastName, assignment.firstName]
+                          .join(" ")
+                          .toLowerCase()
+                          .includes(searchValue) ||
+                        assignment.subjectCode.toLowerCase().includes(searchValue)
+                      );
+                    })
+                    .map((assignment) => (
+                      <tr key={assignment.id} className="border-b bg-white">
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-slate-800">
+                            {assignment.studentId}
+                          </p>
+                          <p className="text-sm text-slate-500">
+                            {buildStudentName(assignment)}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {assignment.mainYearLevel}
+                          <span className="block text-xs text-slate-500">
+                            {assignment.mainSection} / Batch{" "}
+                            {assignment.mainBatchYear}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {assignment.subjectCode}
+                          <span className="block text-xs text-slate-500">
+                            {assignment.subjectTitle}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {assignment.assignedSection}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {assignment.faculty}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {assignment.remarks || "--"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleResolveCompletedSubject(
+                                assignment.batchKey,
+                                assignment.studentId,
+                                assignment.id
+                              )
+                            }
+                            className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                          >
+                            Resolve Completed
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  {!irregularSubjectAssignments.filter(
+                    (assignment) => assignment.program === chairpersonDepartment
+                  ).length ? (
+                    <tr>
+                      <td colSpan="7" className="py-8 text-center text-slate-500">
+                        No irregular subject assignments yet.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[300px_1fr]">
         <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="text-lg font-bold text-[#003366]">Imported Lists</h3>
           <p className="mt-1 text-sm text-slate-500">
-            Download the registrar-forwarded CSV file and arrange sections in
-            Excel before uploading section rosters here.
+            Use the registrar-forwarded list as the source. Generated sections
+            now assign students automatically.
           </p>
 
           <div className="mt-4 space-y-3">
@@ -727,6 +2173,16 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
                     className="mt-3 w-full rounded-lg border border-[#003366] px-3 py-2 text-sm font-semibold text-[#003366] hover:bg-[#003366] hover:text-white"
                   >
                     Download CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedBatchKey(batch.key);
+                      setSectioningBatchYear(batch.batchYear);
+                    }}
+                    className="mt-2 w-full rounded-lg bg-[#003366] px-3 py-2 text-sm font-semibold text-white hover:bg-[#00264d]"
+                  >
+                    Use This List
                   </button>
                 </article>
               ))
@@ -839,8 +2295,7 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
                   </h3>
                   <p className="mt-1 text-sm text-slate-500">
                     Review each generated section separately and edit section
-                    names before saving the final rosters. Uploading a CSV here
-                    replaces that section roster.
+                    names before saving the final rosters.
                   </p>
                 </div>
               </div>
@@ -864,6 +2319,9 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
                         >
                           <p className="text-sm font-semibold text-slate-500">
                             Section {section.sectionCode}
+                          </p>
+                          <p className="mt-1 text-xs font-semibold uppercase text-slate-400">
+                            Batch {displayedBatchYear}
                           </p>
                           <p className="mt-1 text-xl font-bold text-[#003366]">
                             {section.sectionName}
@@ -897,21 +2355,6 @@ function StudentSectioning({ chairpersonDepartment, onSectioningSaved }) {
                         >
                           View Roster
                         </button>
-                        <label className="cursor-pointer rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                          Upload CSV
-                          <input
-                            type="file"
-                            accept=".csv"
-                            onChange={(event) => {
-                              handleUploadSectionCsv(
-                                section.sectionCode,
-                                event.target.files?.[0]
-                              );
-                              event.target.value = "";
-                            }}
-                            className="hidden"
-                          />
-                        </label>
                         <button
                           type="button"
                           onClick={() => handleDownloadSectionCsv(section.sectionCode)}

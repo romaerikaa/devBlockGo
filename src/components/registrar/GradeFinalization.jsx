@@ -113,7 +113,15 @@ const resolveSectionStudents = ({
 
 function GradeFinalization({ allGrades = {} }) {
   const [expandedFacultyKey, setExpandedFacultyKey] = useState("");
+  const [expandedSubjectKeys, setExpandedSubjectKeys] = useState({});
   const [publishedAtByKey, setPublishedAtByKey] = useState({});
+
+  const toggleSubjectGrades = (reviewKey) => {
+    setExpandedSubjectKeys((current) => ({
+      ...current,
+      [reviewKey]: !current[reviewKey],
+    }));
+  };
 
   const forwardedSections = useMemo(() => {
     const savedReviews = localStorage.getItem(CHAIRPERSON_REVIEW_KEY);
@@ -141,7 +149,10 @@ function GradeFinalization({ allGrades = {} }) {
         const gradeKey = review.semester || assignment.semester || "2nd Semester";
         const assignmentKey =
           review.assignmentKey || buildAssignmentStorageKey(assignment);
-        const sectionGrades = allGrades?.[gradeKey]?.[assignmentKey] || {};
+        const sectionGrades =
+          allGrades?.[gradeKey]?.[assignmentKey] ||
+          allGrades?.["2nd Semester"]?.[assignmentKey] ||
+          {};
         const resolvedAssignment = {
           ...assignment,
           facultyId: assignment.facultyId || review.facultyId,
@@ -247,25 +258,26 @@ function GradeFinalization({ allGrades = {} }) {
       };
     });
 
-  const handlePublish = (section) => {
-    if (section.term !== "finals") {
-      alert("Midterm grades are saved in the system but are not released to students until finals are encoded and forwarded.");
-      return;
-    }
-
-    const records = buildPublishedRecords(section);
+  const handlePublishSections = (sections = []) => {
+    const finalSections = sections.filter((section) => section.term === "finals");
+    const records = finalSections.flatMap(buildPublishedRecords);
 
     if (!records.length) {
-      alert("This forwarded section has no roster students to publish.");
+      alert("No finals sections are ready to publish.");
       return;
     }
 
     upsertPublishedStudentGrades(records);
+    const publishedAt = new Date().toISOString();
+
     setPublishedAtByKey((current) => ({
       ...current,
-      [section.reviewKey]: new Date().toISOString(),
+      ...finalSections.reduce((acc, section) => {
+        acc[section.reviewKey] = publishedAt;
+        return acc;
+      }, {}),
     }));
-    alert("Final grades published to student accounts.");
+    alert("All ready final grades published to student accounts.");
   };
 
   const handleExportFacultyPdf = (faculty) => {
@@ -368,6 +380,17 @@ function GradeFinalization({ allGrades = {} }) {
                   {department.faculties.length} faculty with forwarded grades
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() =>
+                  handlePublishSections(
+                    department.faculties.flatMap((faculty) => faculty.sections)
+                  )
+                }
+                className="rounded-xl bg-[#003366] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#00264d]"
+              >
+                Publish All Finals to Students
+              </button>
             </div>
 
             <div className="mt-5 overflow-x-auto">
@@ -446,6 +469,8 @@ function GradeFinalization({ allGrades = {} }) {
                                   const publishedAt =
                                     publishedAtByKey[section.reviewKey];
                                   const canPublish = section.term === "finals";
+                                  const isSubjectExpanded =
+                                    !!expandedSubjectKeys[section.reviewKey];
 
                                   return (
                                     <div
@@ -489,18 +514,22 @@ function GradeFinalization({ allGrades = {} }) {
                                           ) : null}
                                           <button
                                             type="button"
-                                            onClick={() => handlePublish(section)}
-                                            disabled={!canPublish}
-                                            className="rounded-lg bg-[#003366] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#00264d] disabled:cursor-not-allowed disabled:bg-slate-300"
+                                            onClick={() =>
+                                              toggleSubjectGrades(section.reviewKey)
+                                            }
+                                            className="rounded-lg border border-[#003366] px-3 py-2 text-xs font-semibold text-[#003366] transition hover:bg-[#003366] hover:text-white"
                                           >
-                                            Publish to Students
+                                            {isSubjectExpanded
+                                              ? "Hide Students"
+                                              : "View Students"}
                                           </button>
                                         </div>
                                       </div>
 
-                                      <div className="mt-4 overflow-x-auto">
+                                      {isSubjectExpanded ? (
+                                      <div className="mt-4 max-h-[420px] overflow-auto rounded-xl border border-slate-200">
                                         <table className="min-w-full text-sm">
-                                          <thead>
+                                          <thead className="sticky top-0 z-10">
                                             <tr className="bg-slate-100 text-slate-700">
                                               <th className="px-3 py-2 text-left">Student ID</th>
                                               <th className="px-3 py-2 text-left">Student</th>
@@ -550,6 +579,7 @@ function GradeFinalization({ allGrades = {} }) {
                                           </tbody>
                                         </table>
                                       </div>
+                                      ) : null}
                                     </div>
                                   );
                                 })}

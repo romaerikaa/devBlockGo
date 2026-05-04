@@ -63,21 +63,6 @@ const StudentGradesTable = ({ subjects }) => {
                 </div>
 
                 <div>
-                  <p className="text-slate-500">Midterm</p>
-                  <p className="font-semibold">{display.midterm}</p>
-                </div>
-
-                <div>
-                  <p className="text-slate-500">Finals</p>
-                  <p className="font-semibold">{display.finals}</p>
-                </div>
-
-                <div>
-                  <p className="text-slate-500">Final Grade</p>
-                  <p className="font-semibold text-[#003366]">{display.finalGrade}</p>
-                </div>
-
-                <div>
                   <p className="text-slate-500">Grade Equivalent</p>
                   <p className="font-semibold text-[#003366]">
                     {display.equivalent}
@@ -109,9 +94,6 @@ const StudentGradesTable = ({ subjects }) => {
               <th className="p-4 text-left">Code</th>
               <th className="p-4 text-left">Subject Title</th>
               <th className="p-4 text-center">Units</th>
-              <th className="p-4 text-center">Midterm</th>
-              <th className="p-4 text-center">Finals</th>
-              <th className="p-4 text-center">Final Grade</th>
               <th className="p-4 text-center">Grade Equivalent</th>
               <th className="p-4 text-center">Remarks</th>
             </tr>
@@ -129,9 +111,6 @@ const StudentGradesTable = ({ subjects }) => {
                   <td className="p-4 font-semibold text-[#003366]">{display.code}</td>
                   <td className="p-4">{display.name}</td>
                   <td className="p-4 text-center">{display.units}</td>
-                  <td className="p-4 text-center">{display.midterm}</td>
-                  <td className="p-4 text-center">{display.finals}</td>
-                  <td className="p-4 text-center font-bold">{display.finalGrade}</td>
                   <td className="p-4 text-center font-bold text-[#003366]">
                     {display.equivalent}
                   </td>

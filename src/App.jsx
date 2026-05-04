@@ -43,17 +43,18 @@ function App() {
   const handleResetEncodingSeason = () => {
     localStorage.removeItem("blockgo-allGrades");
     localStorage.removeItem(CHAIRPERSON_REVIEW_KEY);
+    localStorage.removeItem("registrarAssignments");
     setAllGrades({});
   };
 
   const studentData = {
-    firstName: "Mikasa",
-    lastName: "Crisostomo",
-    middleName: "L.",
-    studentId: "26-0002",
+    firstName: "Juan",
+    lastName: "Dela Cruz",
+    middleName: "A.",
+    studentId: "26-0001",
     dateOfBirth: "January 01, 2005",
     phone: "09123456789",
-    sex: "Female",
+    sex: "Male",
     email: "student@gmail.com",
     address: "Valenzuela City",
     subjects: [

@@ -113,7 +113,11 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
           students: importedStudents,
           assignment,
         });
-        const sectionGrades = allGrades?.[activeGradeKey]?.[assignmentKey] || {};
+        const gradeKey = assignment.semester || activeGradeKey;
+        const sectionGrades =
+          allGrades?.[gradeKey]?.[assignmentKey] ||
+          allGrades?.[activeGradeKey]?.[assignmentKey] ||
+          {};
         const encodedCount = getEncodedCount({
           grades: sectionGrades,
           students,
@@ -152,6 +156,7 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
               : "In Progress",
           reviewStatus: reviewRecord.status,
           reviewNote: reviewRecord.note,
+          reviewLogs: reviewRecord.logs || [],
           lastUpdated: reviewRecord.lastUpdated,
         };
       });
@@ -196,23 +201,37 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
   const updateReviewStatus = (status, note = "") => {
     if (!selectedSection) return;
 
-    setReviewData((prev) => ({
-      ...prev,
-      [selectedSection.reviewKey]: {
+    setReviewData((prev) => {
+      const currentRecord = prev[selectedSection.reviewKey] || {};
+      const timestamp = new Date().toISOString();
+      const nextLog = {
         status,
         note,
-        lastUpdated: new Date().toISOString(),
-        assignmentKey: selectedSection.assignmentKey,
-        facultyId: selectedSection.facultyId,
-        facultyName: selectedSection.facultyName,
-        sectionName: selectedSection.sectionName,
-        department: selectedSection.department,
-        schoolYear: selectedSection.schoolYear,
-        semester: selectedSection.semester,
-        subjectCode: selectedSection.subjectCode,
-        term: activeTerm,
-      },
-    }));
+        timestamp,
+        actor: chairpersonData.name,
+        role: "Chairperson",
+      };
+
+      return {
+        ...prev,
+        [selectedSection.reviewKey]: {
+          ...currentRecord,
+          status,
+          note,
+          lastUpdated: timestamp,
+          assignmentKey: selectedSection.assignmentKey,
+          facultyId: selectedSection.facultyId,
+          facultyName: selectedSection.facultyName,
+          sectionName: selectedSection.sectionName,
+          department: selectedSection.department,
+          schoolYear: selectedSection.schoolYear,
+          semester: selectedSection.semester,
+          subjectCode: selectedSection.subjectCode,
+          term: activeTerm,
+          logs: [...(currentRecord.logs || []), nextLog],
+        },
+      };
+    });
   };
 
   const filteredRows = useMemo(() => {
@@ -276,7 +295,7 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
 
                 <AcademicAssignment chairpersonDepartment={chairpersonDepartment} />
               </>
-            ) : (
+            ) : activeTab === "dashboard" ? (
               <>
                 <div>
                   <h2 className="text-2xl font-bold text-[#003366]">
@@ -291,6 +310,24 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
 
                 <ChairpersonOverview metrics={metrics} />
 
+                <FacultyStatusTable
+                  rows={monitoredRows}
+                  selectedReviewKey={selectedReviewKey}
+                  onSelectSection={(row) => setSelectedReviewKey(row.reviewKey)}
+                />
+
+                <SectionReviewPanel
+                  selectedSection={selectedSection}
+                  activeTerm={activeTerm}
+                  onSendBack={(note) => updateReviewStatus("returned", note)}
+                  onApprove={(note) => updateReviewStatus("approved", note)}
+                  onSubmitToRegistrar={(note) =>
+                    updateReviewStatus("forwarded", note)
+                  }
+                />
+              </>
+            ) : (
+              <>
                 <FacultyStatusTable
                   rows={filteredRows}
                   selectedReviewKey={selectedReviewKey}

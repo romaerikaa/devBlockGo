@@ -166,23 +166,29 @@ export const downloadStudentCsvFile = (students = [], fileName = "students.csv")
 };
 
 export const buildStudentMasterlistFromBatches = (batches = []) =>
-  batches.flatMap((batch) =>
-    (batch.students || []).map((student) => ({
-      studentId: student.studentId,
-      sex: student.sex || "",
-      firstName: student.firstName || "",
-      lastName: student.lastName || "",
-      middleInitial: student.middleInitial || "",
-      program: batch.program,
-      yearLevel: student.yearLevel || "",
-      section: student.sectionCode
-        ? student.sectionName ||
-          getDefaultSectionName(batch.program, student.sectionCode)
-        : "",
-      schoolYear: batch.batchYear,
-      semester: "",
-    }))
-  );
+  batches
+    .filter((batch) => batch.status !== "Promoted")
+    .flatMap((batch) =>
+      (batch.students || []).map((student) => ({
+        studentId: student.studentId,
+        sex: student.sex || "",
+        firstName: student.firstName || "",
+        lastName: student.lastName || "",
+        middleInitial: student.middleInitial || "",
+        program: batch.program,
+        yearLevel: student.yearLevel || "",
+        section: student.sectionCode
+          ? student.sectionName ||
+            getDefaultSectionName(batch.program, student.sectionCode)
+          : "",
+        schoolYear: batch.batchYear,
+        semester: batch.semester || student.semester || "",
+        studentType: student.studentType || "Regular",
+        remarks: student.remarks || "",
+        repeatedSubjects: student.repeatedSubjects || "",
+        irregularSubjects: student.irregularSubjects || [],
+      }))
+    );
 
 export const buildGroupedSectionLists = (students = []) => {
   const grouped = {};
@@ -205,7 +211,7 @@ export const buildGroupedSectionLists = (students = []) => {
         yearLevel: student.yearLevel,
         section: student.section,
         schoolYear: student.schoolYear,
-        semester: "",
+        semester: student.semester || "",
         students: [],
       };
     }
@@ -216,6 +222,10 @@ export const buildGroupedSectionLists = (students = []) => {
       firstName: student.firstName || "",
       lastName: student.lastName || "",
       middleInitial: student.middleInitial || "",
+      studentType: student.studentType || "Regular",
+      remarks: student.remarks || "",
+      repeatedSubjects: student.repeatedSubjects || "",
+      irregularSubjects: student.irregularSubjects || [],
     });
   });
 

@@ -17,6 +17,27 @@ const buildStudentRosterSignature = (students = []) =>
     .sort()
     .join("|");
 
+const compareStudentsByName = (left, right) => {
+  const leftName = [
+    left.lastName,
+    left.firstName,
+    left.middleInitial,
+    left.id,
+  ]
+    .join(" ")
+    .toLowerCase();
+  const rightName = [
+    right.lastName,
+    right.firstName,
+    right.middleInitial,
+    right.id,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return leftName.localeCompare(rightName);
+};
+
 const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
   const [activeTab, setActiveTab] = useState("All Sections");
   const [selectedProgram, setSelectedProgram] = useState("");
@@ -62,6 +83,11 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
     return saved ? JSON.parse(saved) : [];
   }, []);
 
+  const irregularSubjectAssignments = useMemo(() => {
+    const saved = localStorage.getItem("irregularSubjectAssignments");
+    return saved ? JSON.parse(saved) : [];
+  }, []);
+
   const myAssignments = useMemo(() => {
     return assignments.filter(
       (assignment) => assignment.facultyName === facultyFullName
@@ -79,6 +105,34 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
           (!section.semester || !assign.semester || section.semester === assign.semester)
       );
 
+      const irregularStudentsForSubject = irregularSubjectAssignments.filter(
+        (item) =>
+          (item.status || "Pending") !== "Completed" &&
+          item.faculty === assign.facultyName &&
+          item.subjectCode === assign.subjectCode &&
+          item.assignedSection === assign.sectionName
+      );
+      const regularStudents = assign.rosterStudents || matchedSection?.students || [];
+      const rosterById = new Map(
+        regularStudents.map((student) => [
+          student.studentId,
+          {
+            id: student.studentId,
+            firstName: student.firstName,
+            lastName: student.lastName,
+          },
+        ])
+      );
+
+      irregularStudentsForSubject.forEach((student) => {
+        rosterById.set(student.studentId, {
+          id: student.studentId,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          isIrregularSubject: true,
+        });
+      });
+
       acc[assignmentKey] = {
         assignmentKey,
         year: assign.yearLevel,
@@ -91,18 +145,20 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
         day: assign.day || "TBA",
         semester: assign.semester,
         schoolYear: assign.schoolYear,
-        students: (assign.rosterStudents || matchedSection?.students || []).map((student) => ({
-          id: student.studentId,
-          firstName: student.firstName,
-          lastName: student.lastName,
-        })),
+        students: Array.from(rosterById.values()).sort(compareStudentsByName),
       };
 
       return acc;
     }, {});
-  }, [myAssignments, studentSections]);
+  }, [irregularSubjectAssignments, myAssignments, studentSections]);
 
   const activeGradeKey = systemSettings.semester;
+  const getGradeBucketKey = (sectionData = {}) =>
+    sectionData.semester || activeGradeKey;
+  const getSectionGrades = (assignmentKey, sectionData = {}) =>
+    allGrades?.[getGradeBucketKey(sectionData)]?.[assignmentKey] ||
+    allGrades?.[activeGradeKey]?.[assignmentKey] ||
+    {};
 
   const getReviewKey = useCallback((assignmentKey, sectionData) =>
     buildReviewKey({
@@ -153,8 +209,7 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
   }, [normalizedReviewData]);
 
   const getSectionProgress = (assignmentKey, sectionData) => {
-    const currentSectionGrades =
-      allGrades?.[activeGradeKey]?.[assignmentKey] || {};
+    const currentSectionGrades = getSectionGrades(assignmentKey, sectionData);
 
     if (!sectionData.students.length) return 0;
 
@@ -330,11 +385,9 @@ const FacultyPortal = ({ onLogout, allGrades, setAllGrades }) => {
           selectedSection={selectedSection}
           onBack={() => setSelectedSection(null)}
           systemTerm={systemTerm}
-          activeGradeKey={activeGradeKey}
+          activeGradeKey={getGradeBucketKey(selectedSection)}
           isEncodingOpen={isEncodingOpen}
-          grades={
-            allGrades?.[activeGradeKey]?.[selectedSection.assignmentKey] || {}
-          }
+          grades={getSectionGrades(selectedSection.assignmentKey, selectedSection)}
           setAllGrades={setAllGrades}
           reviewStatus={
             normalizedReviewData[
