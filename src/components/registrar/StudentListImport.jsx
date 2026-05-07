@@ -10,71 +10,81 @@ import {
 const buildRegistrarSectioningName = () => "Registrar Sectioning Office";
 const CURRENT_YEAR = new Date().getFullYear();
 
-export function StudentSubmissionLogs({ version = 0 }) {
-  const [submissionLogs, setSubmissionLogs] = useState(() => {
-    const saved = localStorage.getItem(STUDENT_SUBMISSION_LOGS_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
+const getStoredSubmissionLogs = () => {
+  const saved = localStorage.getItem(STUDENT_SUBMISSION_LOGS_KEY);
+  return saved ? JSON.parse(saved) : [];
+};
 
-  useEffect(() => {
-    const saved = localStorage.getItem(STUDENT_SUBMISSION_LOGS_KEY);
-    setSubmissionLogs(saved ? JSON.parse(saved) : []);
-  }, [version]);
+export function StudentSubmissionLogs() {
+  const [isViewingLogs, setIsViewingLogs] = useState(false);
+  const submissionLogs = isViewingLogs ? getStoredSubmissionLogs() : [];
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-4">
-        <h3 className="text-xl font-bold text-[#003366]">
-          Submission Logs
-        </h3>
-        <p className="mt-1 text-sm text-slate-500">
-          Track which department files were already imported for sectioning.
-        </p>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h3 className="text-xl font-bold text-[#003366]">
+            Submission Logs
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Track which department files were already imported for sectioning.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsViewingLogs((current) => !current)}
+          className="rounded-xl bg-[#003366] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#00264d]"
+        >
+          {isViewingLogs ? "Hide Submission Logs" : "View Submission Logs"}
+        </button>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
-          <thead>
-            <tr className="bg-[#003366] text-white">
-              <th className="px-4 py-3 text-left text-sm">Department</th>
-              <th className="px-4 py-3 text-left text-sm">Batch Year</th>
-              <th className="px-4 py-3 text-left text-sm">File</th>
-              <th className="px-4 py-3 text-left text-sm">Students</th>
-              <th className="px-4 py-3 text-left text-sm">Workspace</th>
-              <th className="px-4 py-3 text-left text-sm">Imported At</th>
-              <th className="px-4 py-3 text-left text-sm">Status</th>
-            </tr>
-          </thead>
+      {isViewingLogs ? (
+        <div className="mt-4 overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="bg-[#003366] text-white">
+                <th className="px-4 py-3 text-left text-sm">Department</th>
+                <th className="px-4 py-3 text-left text-sm">Batch Year</th>
+                <th className="px-4 py-3 text-left text-sm">File</th>
+                <th className="px-4 py-3 text-left text-sm">Students</th>
+                <th className="px-4 py-3 text-left text-sm">Workspace</th>
+                <th className="px-4 py-3 text-left text-sm">Imported At</th>
+                <th className="px-4 py-3 text-left text-sm">Status</th>
+              </tr>
+            </thead>
 
-          <tbody>
-            {submissionLogs.length > 0 ? (
-              submissionLogs.map((log) => (
-                <tr key={log.id} className="border-b bg-white">
-                  <td className="px-4 py-3">{log.program}</td>
-                  <td className="px-4 py-3">{log.batchYear}</td>
-                  <td className="px-4 py-3">{log.fileName}</td>
-                  <td className="px-4 py-3">{log.totalStudents}</td>
-                  <td className="px-4 py-3">{log.submittedTo}</td>
-                  <td className="px-4 py-3">
-                    {new Date(log.submittedAt).toLocaleString("en-US")}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                      {log.status}
-                    </span>
+            <tbody>
+              {submissionLogs.length > 0 ? (
+                submissionLogs.map((log) => (
+                  <tr key={log.id} className="border-b bg-white">
+                    <td className="px-4 py-3">{log.program}</td>
+                    <td className="px-4 py-3">{log.batchYear}</td>
+                    <td className="px-4 py-3">{log.fileName}</td>
+                    <td className="px-4 py-3">{log.totalStudents}</td>
+                    <td className="px-4 py-3">{log.submittedTo}</td>
+                    <td className="px-4 py-3">
+                      {new Date(log.submittedAt).toLocaleString("en-US")}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                        {log.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="7" className="py-8 text-center text-slate-500">
+                    No submission logs yet.
                   </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="7" className="py-8 text-center text-slate-500">
-                  No submission logs yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -278,17 +288,17 @@ function StudentListImport({ selectedProgram = "", onImportComplete }) {
   return (
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-5">
-          <h3 className="text-2xl font-bold text-[#003366]">
+          <h3 className="text-lg font-bold text-[#003366]">
             Import Student List
           </h3>
           <p className="mt-1 text-sm text-slate-500">
-            Upload one Excel CSV file per department with student ID, sex, last
-            name, first name, middle initial, and optional year level, then
-            keep it in the registrar workspace for official sectioning.
+            Please upload one Excel CSV file per department containing student IDs, 
+            sex, last names, first names, and middle initials. 
+            These files should be saved in the Registrar Workspace for official sectioning.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="max-w-xs">
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
               Batch Year
@@ -302,12 +312,12 @@ function StudentListImport({ selectedProgram = "", onImportComplete }) {
                 onClick={openYearPicker}
                 onChange={handleYearInputChange}
                 className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-[#003366]"
-                placeholder="Select year"
+                placeholder="Select Year"
               />
 
               {isYearPickerOpen ? (
-                <div className="absolute left-0 top-[calc(100%+12px)] z-20 w-full min-w-[320px] rounded-3xl border border-slate-200 bg-white shadow-xl">
-                  <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div className="absolute left-0 top-[calc(100%+8px)] z-20 w-full min-w-[240px] rounded-2xl border border-slate-200 bg-white shadow-xl">
+                  <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
                     <button
                       type="button"
                       onClick={() =>
@@ -316,25 +326,25 @@ function StudentListImport({ selectedProgram = "", onImportComplete }) {
                         )
                       }
                       disabled={yearPickerAnchor <= CURRENT_YEAR}
-                      className="text-2xl font-light text-slate-500 transition hover:text-[#003366] disabled:cursor-not-allowed disabled:text-slate-300"
+                      className="text-xl font-light text-slate-500 transition hover:text-[#003366] disabled:cursor-not-allowed disabled:text-slate-300"
                     >
                       ‹
                     </button>
 
-                    <p className="text-lg font-semibold text-slate-700">
+                    <p className="text-sm font-semibold text-slate-700">
                       {yearPickerAnchor}
                     </p>
 
                     <button
                       type="button"
                       onClick={() => setYearPickerAnchor((current) => current + 12)}
-                      className="text-2xl font-light text-slate-500 transition hover:text-[#003366]"
+                      className="text-xl font-light text-slate-500 transition hover:text-[#003366]"
                     >
                       ›
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3 p-5">
+                  <div className="grid grid-cols-3 gap-1.5 p-3">
                     {yearOptions.map((year) => {
                       const isSelected = selectedBatchYear === year;
 
@@ -343,7 +353,7 @@ function StudentListImport({ selectedProgram = "", onImportComplete }) {
                           key={year}
                           type="button"
                           onClick={() => handleYearSelect(year)}
-                          className={`rounded-2xl px-4 py-5 text-lg transition ${
+                          className={`rounded-xl px-2 py-2 text-sm transition ${
                             isSelected
                               ? "bg-rose-50 text-rose-500"
                               : "text-slate-700 hover:bg-slate-100"
@@ -363,19 +373,21 @@ function StudentListImport({ selectedProgram = "", onImportComplete }) {
         <div className="mt-6 rounded-3xl border-2 border-dashed border-slate-300 bg-slate-50 p-6">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_auto_auto] lg:items-end">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Upload Excel CSV File
-              </label>
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileChange}
-                className="block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm"
-              />
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <label className="shrink-0 text-sm font-medium text-slate-700">
+                  Upload Excel CSV File
+                </label>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileChange}
+                  className="block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-500 file:mr-10 file:border-0 file:border-r file:border-solid file:border-slate-300 file:bg-transparent file:pr-4 file:text-sm file:font-semibold file:text-slate-500"
+                />
+              </div>
               <p className="mt-2 text-sm text-slate-500">
                 {selectedFile
                   ? `Selected file: ${selectedFile.name}`
-                  : "Template format: Student ID, Sex, Last Name, First Name, Middle Initial saved from Excel as CSV"}
+                  : "Template Format: Student ID, Sex, Last Name, First Name, Middle Initial saved from Excel as CSV"}
               </p>
             </div>
 

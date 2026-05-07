@@ -8,7 +8,8 @@ import StudentListImport, {
   StudentSubmissionLogs,
 } from "../components/registrar/StudentListImport";
 import GradeFinalization from "../components/registrar/GradeFinalization";
-import StudentSectioning from "../components/chairperson/StudentSectioning";
+import RegistrarStudentSectioning from "../components/registrar/RegistrarStudentSectioning";
+import RegistrarSectionsCreated from "../components/registrar/RegistrarSectionsCreated";
 import { programs } from "../data/registrarData";
 
 function RegistrarPortal({ onLogout, onResetEncodingSeason, allGrades = {} }) {
@@ -32,6 +33,8 @@ function RegistrarPortal({ onLogout, onResetEncodingSeason, allGrades = {} }) {
         return "Encoding Period";
       case "sectioning":
         return "Student Sectioning";
+      case "sectionsCreated":
+        return "Sections Created";
       case "monitoring":
         return "Monitoring";
       case "finalization":
@@ -50,7 +53,9 @@ function RegistrarPortal({ onLogout, onResetEncodingSeason, allGrades = {} }) {
       case "encoding":
         return "Manage the opening and closing of the encoding period.";
       case "sectioning":
-        return "Import student lists and create official 1st year sections.";
+        return "Import student lists and create sections.";
+      case "sectionsCreated":
+        return "Review, edit, promote, and maintain registrar-created sections.";
       case "monitoring":
         return "Track faculty encoding progress and monitor submission status in real time.";
       case "finalization":
@@ -100,19 +105,22 @@ function RegistrarPortal({ onLogout, onResetEncodingSeason, allGrades = {} }) {
           }
         />
 
-        <StudentSectioning
+        <RegistrarStudentSectioning
           key={sectioningVersion}
           chairpersonDepartment={sectioningDepartment}
-          mode="registrar"
         />
 
-        <StudentSubmissionLogs version={sectioningVersion} />
+        <StudentSubmissionLogs />
       </div>
     );
   }
 
   if (activeTab === "monitoring") {
     return <FacultyMonitoring />;
+  }
+
+  if (activeTab === "sectionsCreated") {
+    return <RegistrarSectionsCreated />;
   }
 
   if (activeTab === "finalization") {

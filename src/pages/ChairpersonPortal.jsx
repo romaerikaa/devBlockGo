@@ -19,6 +19,9 @@ import {
   getSectionStudents,
 } from "../utils/chairpersonHelpers";
 
+const DEFAULT_CHAIRPERSON_DEPARTMENT =
+  "Bachelor of Science in Information Technology";
+
 function ChairpersonPortal({ onLogout, allGrades = {} }) {
   const [activeTab, setActiveTab] = useState("sectioning");
   const [reviewData, setReviewData] = useState(() => {
@@ -69,11 +72,11 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
   const resolvedSelectedDepartment =
     selectedDepartment && availableDepartments.includes(selectedDepartment)
       ? selectedDepartment
-      : availableDepartments[0] || "";
+      : availableDepartments[0] || DEFAULT_CHAIRPERSON_DEPARTMENT;
 
   const chairpersonData = {
     name: "Elena Marquez",
-    department: resolvedSelectedDepartment || "No Department Assigned",
+    department: resolvedSelectedDepartment,
     schoolYear: "2025",
     semester: "2nd Semester",
   };
@@ -227,7 +230,13 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
           schoolYear: selectedSection.schoolYear,
           semester: selectedSection.semester,
           subjectCode: selectedSection.subjectCode,
+          subjectTitle: selectedSection.subjectTitle,
+          units: selectedSection.units,
+          schedule: selectedSection.schedule,
+          day: selectedSection.day,
           term: activeTerm,
+          students: selectedSection.students || [],
+          grades: selectedSection.grades || {},
           logs: [...(currentRecord.logs || []), nextLog],
         },
       };
@@ -277,7 +286,6 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
             {activeTab === "sectioning" ? (
               <StudentSectioning
                 chairpersonDepartment={chairpersonDepartment}
-                mode="chairperson"
                 onSectioningSaved={() =>
                   setStudentDataVersion((current) => current + 1)
                 }

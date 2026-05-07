@@ -145,10 +145,9 @@ const buildIrregularSubjectKey = () =>
 function StudentSectioning({
   chairpersonDepartment,
   onSectioningSaved,
-  mode = "chairperson",
 }) {
-  const isRegistrarMode = mode === "registrar";
-  const isChairpersonMode = mode === "chairperson";
+  const isRegistrarMode = false;
+  const isChairpersonMode = true;
   const [batches, setBatches] = useState(() => {
     const saved = localStorage.getItem(STUDENT_BATCHES_KEY);
     return saved ? JSON.parse(saved) : [];
@@ -1060,52 +1059,6 @@ function StudentSectioning({
     alert("Sections saved successfully.");
   };
 
-  const handleShuffleSections = () => {
-    if (!selectedBatch || yearSectionPlans.length < 2) {
-      alert("At least two saved sections are needed before shuffling students.");
-      return;
-    }
-
-    const studentsForYear = students.filter(
-      (student) => (student.yearLevel || selectedYearLevel) === selectedYearLevel
-    );
-
-    if (studentsForYear.length < 2) {
-      alert("At least two students are needed before shuffling.");
-      return;
-    }
-
-    const shuffledStudents = [...studentsForYear].sort(() => Math.random() - 0.5);
-    const assignedStudentsById = new Map(
-      shuffledStudents.map((student, index) => {
-        const targetSection = yearSectionPlans[index % yearSectionPlans.length];
-        const sectionName =
-          targetSection.sectionName ||
-          getDefaultSectionName(selectedBatch.program, targetSection.sectionCode);
-
-        return [
-          student.studentId,
-          {
-            ...student,
-            yearLevel: targetSection.yearLevel || selectedYearLevel,
-            sectionCode: targetSection.sectionCode,
-            sectionName,
-          },
-        ];
-      })
-    );
-
-    updateSelectedBatch((batch) => ({
-      ...batch,
-      students: (batch.students || []).map(
-        (student) => assignedStudentsById.get(student.studentId) || student
-      ),
-      lastSectionedAt: new Date().toISOString(),
-    }));
-
-    alert(`${selectedYearLevel} students shuffled successfully.`);
-  };
-
   const persistSectioningData = (nextBatches, nextGraduatingStudents) => {
     setBatches(nextBatches);
     setGraduatingStudents(nextGraduatingStudents);
@@ -1645,43 +1598,18 @@ function StudentSectioning({
             <p className="mt-2 max-w-3xl text-sm text-slate-500">
               {isRegistrarMode
                 ? "Work from imported enrolled lists, generate sections per year level, automatically distribute students, and save the final sections for chairperson review."
-                : "View registrar-created sections and shuffle students across existing sections when a revised distribution is needed."}
+                : "View registrar-created sections. Use Academic Assignment to distribute sections to faculty."}
             </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {isChairpersonMode ? (
-              <button
-                type="button"
-                onClick={handleShuffleSections}
-                disabled={!selectedBatch || yearSectionPlans.length < 2}
-                className="rounded-xl border border-[#003366] px-5 py-3 text-sm font-semibold text-[#003366] transition hover:bg-[#003366] hover:text-white disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400"
-              >
-                Shuffle Sections
-              </button>
-            ) : null}
-            {isChairpersonMode ? (
-              <button
-                type="button"
-                onClick={handleSaveSectioning}
-                disabled={!selectedBatch || !sectionPlans.length}
-                className="rounded-xl bg-[#003366] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#00264d] disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                Save Sections
-              </button>
-            ) : null}
           </div>
         </div>
       </div>
 
       {isRegistrarMode ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {[
             ["sectioning", "Section Lists"],
             ["promotion", "Promote to Next Year"],
-            ["graduating", "Review 4th Year Students"],
-            ["irregular", "Review Irregular Students"],
           ].map(([id, label]) => (
             <button
               key={id}
@@ -2505,7 +2433,7 @@ function StudentSectioning({
                   <p className="mt-1 text-sm text-slate-500">
                     {isRegistrarMode
                       ? "Review each generated section separately and edit section names before saving the final sections."
-                      : "Review registrar-created sections and shuffle students across existing sections when needed."}
+                      : "Review registrar-created sections before assigning them to faculty."}
                   </p>
                 </div>
                 {isChairpersonMode ? (
@@ -2618,13 +2546,15 @@ function StudentSectioning({
                         >
                           Export CSV
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleImportSectionCsv(section.sectionCode)}
-                          className="rounded-lg border border-emerald-300 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
-                        >
-                          Import List
-                        </button>
+                        {isRegistrarMode ? (
+                          <button
+                            type="button"
+                            onClick={() => handleImportSectionCsv(section.sectionCode)}
+                            className="rounded-lg border border-emerald-300 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                          >
+                            Import List
+                          </button>
+                        ) : null}
                         {isRegistrarMode ? (
                           <button
                             type="button"
@@ -2662,7 +2592,7 @@ function StudentSectioning({
                   <p className="mt-1 text-sm text-slate-500">
                     {isRegistrarMode
                       ? "Move students between generated sections, add late enrollees, and remove duplicates or wrong entries."
-                      : "Students shown here come from registrar-created sections. Use Shuffle Sections for a randomized redistribution."}
+                      : "Students shown here come from registrar-created sections for faculty assignment reference."}
                   </p>
                 </div>
 
@@ -2744,7 +2674,9 @@ function StudentSectioning({
                       <th className="px-4 py-3 text-left text-sm">Name</th>
                       <th className="px-4 py-3 text-left text-sm">Sex</th>
                       <th className="px-4 py-3 text-left text-sm">Section</th>
-                      <th className="px-4 py-3 text-left text-sm">Action</th>
+                      {isRegistrarMode ? (
+                        <th className="px-4 py-3 text-left text-sm">Action</th>
+                      ) : null}
                     </tr>
                   </thead>
                   <tbody>
@@ -2766,32 +2698,35 @@ function StudentSectioning({
                             {student.sex || "--"}
                           </td>
                           <td className="px-4 py-3">
-                            <select
-                              value={student.sectionCode || ""}
-                              onChange={(event) =>
-                                isRegistrarMode
-                                  ? handleMoveStudent(
-                                      student.studentId,
-                                      event.target.value
-                                    )
-                                  : undefined
-                              }
-                              disabled={!isRegistrarMode}
-                              className="w-full min-w-44 rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#003366]"
-                            >
-                              <option value="">Unassigned</option>
-                              {sectionSummaries.map((section) => (
-                                <option
-                                  key={section.sectionCode}
-                                  value={section.sectionCode}
-                                >
-                                  {section.sectionName}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-4 py-3">
                             {isRegistrarMode ? (
+                              <select
+                                value={student.sectionCode || ""}
+                                onChange={(event) =>
+                                  handleMoveStudent(
+                                    student.studentId,
+                                    event.target.value
+                                  )
+                                }
+                                className="w-full min-w-44 rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#003366]"
+                              >
+                                <option value="">Unassigned</option>
+                                {sectionSummaries.map((section) => (
+                                  <option
+                                    key={section.sectionCode}
+                                    value={section.sectionCode}
+                                  >
+                                    {section.sectionName}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span className="text-sm text-slate-700">
+                                {student.sectionName || selectedSection?.sectionName || "--"}
+                              </span>
+                            )}
+                          </td>
+                          {isRegistrarMode ? (
+                            <td className="px-4 py-3">
                               <button
                                 type="button"
                                 onClick={() => handleStartRemoveStudent(student)}
@@ -2799,15 +2734,16 @@ function StudentSectioning({
                               >
                                 Remove
                               </button>
-                            ) : (
-                              <span className="text-sm text-slate-400">Preview</span>
-                            )}
-                          </td>
+                            </td>
+                          ) : null}
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="5" className="py-8 text-center text-slate-500">
+                        <td
+                          colSpan={isRegistrarMode ? 5 : 4}
+                          className="py-8 text-center text-slate-500"
+                        >
                           {selectedSection
                             ? "No students found in this section."
                             : "Generate sections to view section rosters."}

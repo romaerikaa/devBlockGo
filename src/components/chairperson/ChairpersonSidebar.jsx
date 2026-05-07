@@ -12,7 +12,7 @@ function ChairpersonSidebar({ activeTab, setActiveTab }) {
   ];
 
   return (
-    <aside className="w-full max-w-[260px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <aside className="w-full max-w-[260px] self-start rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-6">
       <div className="mb-4 border-b border-slate-200 pb-3">
         <h2 className="text-lg font-bold text-[#003366]">Chairperson Panel</h2>
       </div>

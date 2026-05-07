@@ -8,7 +8,10 @@ import {
   normalizeText,
 } from "../../utils/chairpersonHelpers";
 import { computeFinal, getGradeEquivalent, getStatus } from "../../utils/gradingHelpers";
-import { upsertPublishedStudentGrades } from "../../utils/publishedGradesHelpers";
+import {
+  STUDENT_PUBLISHED_GRADES_KEY,
+  upsertPublishedStudentGrades,
+} from "../../utils/publishedGradesHelpers";
 
 const getStudentId = (student = {}) => student.studentId || student.id || "";
 
@@ -69,12 +72,78 @@ const findSavedSectionRoster = ({ studentSections = [], assignment }) => {
   return matchedSection?.students || [];
 };
 
+const mergeGradeRecords = (leftGrades = {}, rightGrades = {}) => {
+  const mergedGrades = { ...leftGrades };
+
+  Object.entries(rightGrades || {}).forEach(([studentId, record]) => {
+    mergedGrades[studentId] = {
+      ...(mergedGrades[studentId] || {}),
+      ...(record || {}),
+    };
+  });
+
+  return mergedGrades;
+};
+
+const buildPublishedSectionKey = (section = {}) =>
+  [
+    section.schoolYear || "",
+    section.semester || "",
+    section.subjectCode || "",
+    section.sectionName || "",
+  ].join("|");
+
+const getPublishedSectionsFromStorage = () => {
+  const saved = localStorage.getItem(STUDENT_PUBLISHED_GRADES_KEY);
+  const publishedGrades = saved ? JSON.parse(saved) : {};
+  const publishedSectionKeys = new Set();
+
+  Object.values(publishedGrades).forEach((records) => {
+    (records || []).forEach((record) => {
+      publishedSectionKeys.add(
+        [
+          record.schoolYear || "",
+          record.semester || "",
+          record.subjectCode || "",
+          record.sectionName || "",
+        ].join("|")
+      );
+    });
+  });
+
+  return publishedSectionKeys;
+};
+
+const getGradesForAssignment = ({ allGrades = {}, gradeKey, assignmentKey }) => {
+  const normalizedAssignmentKey = String(assignmentKey || "");
+  const gradeBuckets = [
+    gradeKey,
+    "2nd Semester",
+    "1st Semester",
+    "Summer",
+    ...Object.keys(allGrades || {}),
+  ].filter(Boolean);
+
+  return gradeBuckets.reduce((mergedGrades, bucketKey) => {
+    const bucketGrades = allGrades?.[bucketKey] || {};
+    const directGrades =
+      bucketGrades[assignmentKey] || bucketGrades[normalizedAssignmentKey] || {};
+
+    return mergeGradeRecords(mergedGrades, directGrades);
+  }, {});
+};
+
 const resolveSectionStudents = ({
   assignment,
+  review,
   gradeStudentIds,
   studentMasterlist,
   studentSections,
 }) => {
+  if (Array.isArray(review?.students) && review.students.length) {
+    return review.students;
+  }
+
   if (Array.isArray(assignment.rosterStudents) && assignment.rosterStudents.length) {
     return assignment.rosterStudents;
   }
@@ -114,6 +183,9 @@ const resolveSectionStudents = ({
 function GradeFinalization({ allGrades = {} }) {
   const [expandedFacultyKey, setExpandedFacultyKey] = useState("");
   const [expandedSubjectKeys, setExpandedSubjectKeys] = useState({});
+  const [publishedSectionKeys, setPublishedSectionKeys] = useState(() =>
+    getPublishedSectionsFromStorage()
+  );
   const [publishedAtByKey, setPublishedAtByKey] = useState({});
 
   const toggleSubjectGrades = (reviewKey) => {
@@ -137,22 +209,30 @@ function GradeFinalization({ allGrades = {} }) {
       ? JSON.parse(savedStudentSections)
       : [];
 
-    return Object.entries(reviewData)
-      .filter(([, review]) => review.status === "forwarded")
-      .map(([reviewKey, review]) => {
+    const sectionsByAssignment = new Map();
+
+    Object.entries(reviewData)
+      .filter(([, review]) => ["approved", "forwarded"].includes(review.status))
+      .forEach(([reviewKey, review]) => {
         const assignment =
           assignments.find(
             (item) =>
-              buildAssignmentStorageKey(item) === review.assignmentKey ||
+              String(buildAssignmentStorageKey(item)) ===
+                String(review.assignmentKey) ||
               item.assignmentKey === review.assignmentKey
           ) || {};
         const gradeKey = review.semester || assignment.semester || "2nd Semester";
         const assignmentKey =
           review.assignmentKey || buildAssignmentStorageKey(assignment);
-        const sectionGrades =
-          allGrades?.[gradeKey]?.[assignmentKey] ||
-          allGrades?.["2nd Semester"]?.[assignmentKey] ||
-          {};
+        const storedSectionGrades = getGradesForAssignment({
+          allGrades,
+          gradeKey,
+          assignmentKey,
+        });
+        const sectionGrades = mergeGradeRecords(
+          review.grades || {},
+          storedSectionGrades
+        );
         const resolvedAssignment = {
           ...assignment,
           facultyId: assignment.facultyId || review.facultyId,
@@ -165,29 +245,67 @@ function GradeFinalization({ allGrades = {} }) {
         };
         const students = resolveSectionStudents({
           assignment: resolvedAssignment,
+          review,
           gradeStudentIds: Object.keys(sectionGrades),
           studentMasterlist,
           studentSections,
         });
 
-        return {
-          reviewKey,
+        const existingSection = sectionsByAssignment.get(assignmentKey);
+        const isFinalsReview = (review.term || "finals") === "finals";
+        const shouldReplaceExisting =
+          !existingSection ||
+          isFinalsReview ||
+          existingSection.term !== "finals";
+
+        const nextSection = {
+          ...(existingSection || {}),
+          reviewKey: isFinalsReview
+            ? reviewKey
+            : existingSection?.reviewKey || reviewKey,
+          midtermReviewKey:
+            (review.term || "finals") === "midterm"
+              ? reviewKey
+              : existingSection?.midtermReviewKey || "",
+          finalsReviewKey:
+            isFinalsReview ? reviewKey : existingSection?.finalsReviewKey || "",
           assignmentKey,
           facultyId: resolvedAssignment.facultyId || "",
           facultyName: resolvedAssignment.facultyName || "--",
           department: resolvedAssignment.program || "--",
           sectionName: resolvedAssignment.sectionName || "--",
           subjectCode: resolvedAssignment.subjectCode || "--",
-          subjectTitle: assignment.subjectTitle || review.subjectCode || "--",
-          units: Number(assignment.units || 3),
+          subjectTitle:
+            assignment.subjectTitle || review.subjectTitle || review.subjectCode || "--",
+          units: Number(assignment.units || review.units || 3),
           schoolYear: resolvedAssignment.schoolYear || "--",
           semester: resolvedAssignment.semester || "--",
-          term: review.term || "finals",
-          forwardedAt: review.lastUpdated,
+          term: isFinalsReview || existingSection?.term === "finals" ? "finals" : "midterm",
+          reviewStatus: isFinalsReview
+            ? review.status
+            : existingSection?.reviewStatus || review.status,
+          forwardedAt: isFinalsReview
+            ? review.lastUpdated
+            : existingSection?.forwardedAt || review.lastUpdated,
           students,
-          grades: sectionGrades,
+          grades: mergeGradeRecords(existingSection?.grades || {}, sectionGrades),
         };
+
+        if (shouldReplaceExisting) {
+          sectionsByAssignment.set(assignmentKey, nextSection);
+        } else {
+          sectionsByAssignment.set(assignmentKey, {
+            ...existingSection,
+            midtermReviewKey: nextSection.midtermReviewKey,
+            grades: mergeGradeRecords(existingSection.grades, sectionGrades),
+            students: existingSection.students?.length
+              ? existingSection.students
+              : students,
+          });
+        }
       });
+
+    return Array.from(sectionsByAssignment.values());
   }, [allGrades]);
 
   const groupedDepartments = useMemo(() => {
@@ -221,7 +339,6 @@ function GradeFinalization({ allGrades = {} }) {
       faculties: Array.from(department.faculties.values()).map((faculty) => ({
         ...faculty,
         sections: [...faculty.sections].sort((left, right) => {
-          if (left.term !== right.term) return left.term === "finals" ? -1 : 1;
           return left.sectionName.localeCompare(right.sectionName);
         }),
       })),
@@ -260,19 +377,31 @@ function GradeFinalization({ allGrades = {} }) {
 
   const handlePublishSections = (sections = []) => {
     const finalSections = sections.filter((section) => section.term === "finals");
-    const records = finalSections.flatMap(buildPublishedRecords);
+    const unpublishedFinalSections = finalSections.filter(
+      (section) => !publishedSectionKeys.has(buildPublishedSectionKey(section))
+    );
+    const records = unpublishedFinalSections.flatMap(buildPublishedRecords);
 
     if (!records.length) {
-      alert("No finals sections are ready to publish.");
+      alert("These finals grades are already published.");
       return;
     }
 
     upsertPublishedStudentGrades(records);
     const publishedAt = new Date().toISOString();
 
+    setPublishedSectionKeys((current) => {
+      const next = new Set(current);
+
+      unpublishedFinalSections.forEach((section) => {
+        next.add(buildPublishedSectionKey(section));
+      });
+
+      return next;
+    });
     setPublishedAtByKey((current) => ({
       ...current,
-      ...finalSections.reduce((acc, section) => {
+      ...unpublishedFinalSections.reduce((acc, section) => {
         acc[section.reviewKey] = publishedAt;
         return acc;
       }, {}),
@@ -360,13 +489,26 @@ function GradeFinalization({ allGrades = {} }) {
         <h3 className="text-xl font-bold text-[#003366]">Grade Finalization</h3>
         <p className="mt-1 text-sm text-slate-500">
           Midterm grades are kept in the system. Student grade release becomes
-          available only after finals grades are encoded, approved, and forwarded
-          by the chairperson.
+          available after finals grades are encoded and approved by the
+          chairperson.
         </p>
       </div>
 
       {groupedDepartments.length ? (
-        groupedDepartments.map((department) => (
+        groupedDepartments.map((department) => {
+          const departmentSections = department.faculties.flatMap(
+            (faculty) => faculty.sections
+          );
+          const departmentFinalSections = departmentSections.filter(
+            (section) => section.term === "finals"
+          );
+          const isDepartmentPublished =
+            departmentFinalSections.length > 0 &&
+            departmentFinalSections.every((section) =>
+              publishedSectionKeys.has(buildPublishedSectionKey(section))
+            );
+
+          return (
           <section
             key={department.department}
             className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
@@ -377,19 +519,22 @@ function GradeFinalization({ allGrades = {} }) {
                   {department.department}
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  {department.faculties.length} faculty with forwarded grades
+                  {department.faculties.length} faculty with grades ready for review
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() =>
-                  handlePublishSections(
-                    department.faculties.flatMap((faculty) => faculty.sections)
-                  )
-                }
-                className="rounded-xl bg-[#003366] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#00264d]"
+                disabled={isDepartmentPublished}
+                onClick={() => handlePublishSections(departmentSections)}
+                className={`rounded-xl px-4 py-3 text-sm font-semibold text-white transition ${
+                  isDepartmentPublished
+                    ? "cursor-not-allowed bg-slate-400"
+                    : "bg-[#003366] hover:bg-[#00264d]"
+                }`}
               >
-                Publish All Finals to Students
+                {isDepartmentPublished
+                  ? "Published"
+                  : "Publish All Finals to Students"}
               </button>
             </div>
 
@@ -406,11 +551,8 @@ function GradeFinalization({ allGrades = {} }) {
                 <tbody>
                   {department.faculties.map((faculty) => {
                     const isExpanded = expandedFacultyKey === faculty.facultyKey;
-                    const finalsCount = faculty.sections.filter(
+                    const readyCount = faculty.sections.filter(
                       (section) => section.term === "finals"
-                    ).length;
-                    const midtermCount = faculty.sections.filter(
-                      (section) => section.term === "midterm"
                     ).length;
 
                     return (
@@ -426,15 +568,16 @@ function GradeFinalization({ allGrades = {} }) {
                           </td>
                           <td className="px-4 py-3">
                             <p className="font-semibold text-slate-800">
-                              {faculty.sections.length} total
+                              {faculty.sections.length} section
+                              {faculty.sections.length === 1 ? "" : "s"}
                             </p>
                             <p className="text-xs text-slate-500">
-                              {midtermCount} midterm, {finalsCount} finals
+                              Combined midterm and finals view
                             </p>
                           </td>
                           <td className="px-4 py-3 text-sm text-slate-600">
-                            {finalsCount
-                              ? "Final release available per finals section"
+                            {readyCount
+                              ? "Ready for student release"
                               : "Midterms saved; waiting for finals"}
                           </td>
                           <td className="px-4 py-3">
@@ -594,10 +737,10 @@ function GradeFinalization({ allGrades = {} }) {
               </table>
             </div>
           </section>
-        ))
+        )})
       ) : (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500 shadow-sm">
-          No chairperson-forwarded grades are ready for registrar finalization.
+          No chairperson-approved grades are ready for registrar finalization.
         </div>
       )}
     </div>

@@ -48,10 +48,10 @@ function App() {
   };
 
   const studentData = {
-    firstName: "Juan",
-    lastName: "Dela Cruz",
-    middleName: "A.",
-    studentId: "26-0001",
+    firstName: "Jul",
+    lastName: "Mar",
+    middleName: "M",
+    studentId: "23-1111",
     dateOfBirth: "January 01, 2005",
     phone: "09123456789",
     sex: "Male",
@@ -59,25 +59,14 @@ function App() {
     address: "Valenzuela City",
     subjects: [
       {
-        code: "IT 101",
-        name: "Introduction to Computing",
+        code: "TEST 101",
+        name: "Test Subject",
         units: 3,
-        midterm: 70,
-        finals: 70,
-      },
-       {
-        code: "IT 201",
-        name: "Web Design",
-        units: 3,
-        midterm: 90,
+        midterm: 80,
         finals: 90,
-      },
-      {
-        code: "IT 201",
-        name: "App Dev",
-        units: 3,
-        midterm: 70,
-        finals: 70,
+        finalGrade: "85.00",
+        equivalent: "2.00",
+        remarks: "Passed",
       },
     ],
   };
