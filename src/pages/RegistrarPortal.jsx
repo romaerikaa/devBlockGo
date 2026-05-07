@@ -4,11 +4,19 @@ import RegistrarSidebar from "../components/registrar/RegistrarSidebar";
 import RegistrarDashboard from "../components/registrar/RegistrarDashboard";
 import FacultyMonitoring from "../components/registrar/FacultyMonitoring";
 import EncodingPeriod from "../components/registrar/EncodingPeriod";
-import StudentListImport from "../components/registrar/StudentListImport";
+import StudentListImport, {
+  StudentSubmissionLogs,
+} from "../components/registrar/StudentListImport";
 import GradeFinalization from "../components/registrar/GradeFinalization";
+import StudentSectioning from "../components/chairperson/StudentSectioning";
+import { programs } from "../data/registrarData";
 
 function RegistrarPortal({ onLogout, onResetEncodingSeason, allGrades = {} }) {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [sectioningDepartment, setSectioningDepartment] = useState(
+    programs[0] || ""
+  );
+  const [sectioningVersion, setSectioningVersion] = useState(0);
 
   const registrarData = {
     name: "PLV Registrar",
@@ -22,8 +30,8 @@ function RegistrarPortal({ onLogout, onResetEncodingSeason, allGrades = {} }) {
         return "Dashboard";
       case "encoding":
         return "Encoding Period";
-      case "studentlist":
-        return "Student List Import";
+      case "sectioning":
+        return "Student Sectioning";
       case "monitoring":
         return "Monitoring";
       case "finalization":
@@ -41,8 +49,8 @@ function RegistrarPortal({ onLogout, onResetEncodingSeason, allGrades = {} }) {
         return "Overview of registrar activities and grade encoding progress.";
       case "encoding":
         return "Manage the opening and closing of the encoding period.";
-      case "studentlist":
-        return "Upload department-based student ID files and submit them to chairpersons for sectioning.";
+      case "sectioning":
+        return "Import student lists and create official 1st year sections.";
       case "monitoring":
         return "Track faculty encoding progress and monitor submission status in real time.";
       case "finalization":
@@ -63,8 +71,44 @@ function RegistrarPortal({ onLogout, onResetEncodingSeason, allGrades = {} }) {
     return <EncodingPeriod onResetEncodingSeason={onResetEncodingSeason} />;
   }
 
-  if (activeTab === "studentlist") {
-  return <StudentListImport />;
+  if (activeTab === "sectioning") {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <label className="block max-w-xl">
+            <span className="mb-2 block text-sm font-medium text-slate-700">
+              Department
+            </span>
+            <select
+              value={sectioningDepartment}
+              onChange={(event) => setSectioningDepartment(event.target.value)}
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-[#003366]"
+            >
+              {programs.map((program) => (
+                <option key={program} value={program}>
+                  {program}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <StudentListImport
+          selectedProgram={sectioningDepartment}
+          onImportComplete={() =>
+            setSectioningVersion((currentVersion) => currentVersion + 1)
+          }
+        />
+
+        <StudentSectioning
+          key={sectioningVersion}
+          chairpersonDepartment={sectioningDepartment}
+          mode="registrar"
+        />
+
+        <StudentSubmissionLogs version={sectioningVersion} />
+      </div>
+    );
   }
 
   if (activeTab === "monitoring") {

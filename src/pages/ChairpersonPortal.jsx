@@ -277,6 +277,7 @@ function ChairpersonPortal({ onLogout, allGrades = {} }) {
             {activeTab === "sectioning" ? (
               <StudentSectioning
                 chairpersonDepartment={chairpersonDepartment}
+                mode="chairperson"
                 onSectioningSaved={() =>
                   setStudentDataVersion((current) => current + 1)
                 }

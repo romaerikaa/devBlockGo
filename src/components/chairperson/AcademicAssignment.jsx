@@ -1,7 +1,10 @@
 import React, { useMemo, useState } from "react";
-import { facultyList, sections as sectionList } from "../../data/registrarData";
+import { facultyList } from "../../data/registrarData";
 import {
+  AVAILABLE_YEAR_LEVELS,
+  STUDENT_BATCHES_KEY,
   downloadStudentCsvFile,
+  getDefaultSectionName,
   parseStudentIdSpreadsheet,
 } from "../../utils/studentSectioningHelpers";
 
@@ -17,6 +20,7 @@ const DAY_OPTIONS = [
 
 function AcademicAssignment({ chairpersonDepartment = "" }) {
   const [selectedFacultyId, setSelectedFacultyId] = useState("");
+  const [selectedYearLevel, setSelectedYearLevel] = useState("1st Year");
   const [selectedSectionName, setSelectedSectionName] = useState("");
   const [subjectCode, setSubjectCode] = useState("");
   const [subjectTitle, setSubjectTitle] = useState("");
@@ -33,26 +37,76 @@ function AcademicAssignment({ chairpersonDepartment = "" }) {
 
   const studentSections =
     JSON.parse(localStorage.getItem("studentSections")) || [];
+  const studentBatches =
+    JSON.parse(localStorage.getItem(STUDENT_BATCHES_KEY)) || [];
+
+  const createdSections = studentBatches
+    .filter((batch) => batch.status !== "Promoted")
+    .flatMap((batch) =>
+      (batch.sectionPlans || []).map((section) => {
+        const sectionName =
+          section.sectionName ||
+          getDefaultSectionName(batch.program, section.sectionCode);
+        const yearLevel = section.yearLevel || "";
+
+        return {
+          key: [
+            batch.program,
+            yearLevel,
+            sectionName,
+            batch.batchYear,
+            batch.semester || "",
+          ].join("|"),
+          program: batch.program,
+          yearLevel,
+          section: sectionName,
+          schoolYear: batch.batchYear,
+          semester: batch.semester || "",
+          students: (batch.students || [])
+            .filter(
+              (student) =>
+                student.sectionCode === section.sectionCode &&
+                (student.yearLevel || yearLevel) === yearLevel
+            )
+            .map((student) => ({
+              studentId: student.studentId,
+              sex: student.sex || "",
+              firstName: student.firstName || "",
+              lastName: student.lastName || "",
+              middleInitial: student.middleInitial || "",
+              studentType: student.studentType || "Regular",
+              remarks: student.remarks || "",
+              repeatedSubjects: student.repeatedSubjects || "",
+              irregularSubjects: student.irregularSubjects || [],
+            })),
+        };
+      })
+    );
+  const sectionOptions = [
+    ...studentSections,
+    ...createdSections.filter(
+      (createdSection) =>
+        !studentSections.some(
+          (section) =>
+            section.program === createdSection.program &&
+            section.yearLevel === createdSection.yearLevel &&
+            section.section === createdSection.section &&
+            section.schoolYear === createdSection.schoolYear &&
+            (section.semester || "") === (createdSection.semester || "")
+        )
+    ),
+  ];
 
   const selectedProgram = chairpersonDepartment;
-  const schoolYears = [
-    ...new Set(
-      [...sectionList, ...studentSections]
-        .filter((section) => section.program === selectedProgram)
-        .map((section) => section.schoolYear)
-        .filter(Boolean)
-    ),
-  ].sort((left, right) => String(right).localeCompare(String(left)));
-  const selectedSchoolYear = schoolYears[0] || "";
 
   const filteredFaculty = facultyList.filter(
     (faculty) => faculty.program === selectedProgram
   );
 
-  const filteredSections = studentSections.filter(
+  const filteredSections = sectionOptions.filter(
     (section) =>
       section.program === selectedProgram &&
-      section.schoolYear === selectedSchoolYear
+      section.yearLevel === selectedYearLevel
   );
 
   const selectedFaculty = facultyList.find(
@@ -91,13 +145,12 @@ function AcademicAssignment({ chairpersonDepartment = "" }) {
 
     downloadStudentCsvFile(
       selectedSectionStudents,
-      `${selectedProgram}-${selectedSchoolYear}-${selectedSectionName}.csv`
+      `${selectedProgram}-${selectedSection?.schoolYear || "section"}-${selectedSectionName}.csv`
     );
   };
 
   const handleAssign = () => {
     if (
-      !selectedSchoolYear ||
       !selectedProgram ||
       !selectedFacultyId ||
       !selectedSectionName ||
@@ -132,7 +185,7 @@ function AcademicAssignment({ chairpersonDepartment = "" }) {
         (item) =>
           item.facultyId === Number(selectedFacultyId) &&
           item.sectionName === selectedSectionName &&
-          item.schoolYear === selectedSchoolYear &&
+          item.schoolYear === selectedSection.schoolYear &&
           item.semester.toLowerCase() === semester.trim().toLowerCase() &&
           item.subjectCode.toLowerCase() === subjectCode.trim().toLowerCase()
       );
@@ -154,7 +207,7 @@ function AcademicAssignment({ chairpersonDepartment = "" }) {
         units: units.trim(),
         schedule: scheduleTime.trim(),
         day: selectedDaysText,
-        schoolYear: selectedSchoolYear,
+        schoolYear: selectedSection.schoolYear,
         semester: semester.trim(),
         rosterFileName,
         rosterStudents,
@@ -252,20 +305,50 @@ function AcademicAssignment({ chairpersonDepartment = "" }) {
 
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
+              Year Level
+            </label>
+            <select
+              value={selectedYearLevel}
+              onChange={(e) => {
+                setSelectedYearLevel(e.target.value);
+                setSelectedSectionName("");
+              }}
+              disabled={!selectedProgram}
+              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm disabled:bg-slate-100"
+            >
+              {AVAILABLE_YEAR_LEVELS.map((yearLevel) => (
+                <option key={yearLevel} value={yearLevel}>
+                  {yearLevel}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
               Section
             </label>
             <select
               value={selectedSectionName}
               onChange={(e) => setSelectedSectionName(e.target.value)}
-              disabled={!selectedProgram || !selectedSchoolYear}
+              disabled={!selectedProgram}
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm disabled:bg-slate-100"
             >
               <option value="">Choose section</option>
-              {filteredSections.map((section, index) => (
-                <option key={`${section.section}-${index}`} value={section.section}>
-                  {section.section} - {section.yearLevel}
+              {filteredSections.length ? (
+                filteredSections.map((section, index) => (
+                  <option
+                    key={`${section.section}-${section.schoolYear}-${index}`}
+                    value={section.section}
+                  >
+                    {section.section} - {section.yearLevel}
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>
+                  No {selectedYearLevel} sections found
                 </option>
-              ))}
+              )}
             </select>
           </div>
 

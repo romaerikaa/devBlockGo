@@ -111,7 +111,7 @@ export const parseStudentIdSpreadsheet = (text = "") => {
         lastName: values[lastNameIndex] || "",
         firstName: values[firstNameIndex] || "",
         middleInitial: values[middleInitialIndex] || "",
-        yearLevel: yearLevelIndex === -1 ? "" : values[yearLevelIndex] || "",
+        yearLevel: yearLevelIndex === -1 ? "1st Year" : values[yearLevelIndex] || "1st Year",
         sectionCode: "",
       };
     })
@@ -125,25 +125,37 @@ export const parseStudentIdSpreadsheet = (text = "") => {
     );
 };
 
-export const buildStudentCsvContent = (students = []) => {
+export const buildStudentCsvContent = (students = [], options = {}) => {
+  const { includeYearLevel = true } = options;
   const header = [
     "Student ID",
     "Sex",
     "Last Name",
     "First Name",
     "Middle Initial",
-    "Year Level",
   ];
 
+  if (includeYearLevel) {
+    header.push("Year Level");
+  }
+
   const rows = students.map((student) =>
-    [
+    (includeYearLevel
+      ? [
       student.studentId,
       student.sex,
       student.lastName,
       student.firstName,
       student.middleInitial,
       student.yearLevel || "",
-    ]
+        ]
+      : [
+          student.studentId,
+          student.sex,
+          student.lastName,
+          student.firstName,
+          student.middleInitial,
+        ])
       .map(escapeCsvValue)
       .join(",")
   );
@@ -235,7 +247,53 @@ export const buildGroupedSectionLists = (students = []) => {
 export const syncSectionedStudentsToStorage = (batches = []) => {
   const studentMasterlist = buildStudentMasterlistFromBatches(batches);
   const groupedSections = buildGroupedSectionLists(studentMasterlist);
+  const existingSectionKeys = new Set(
+    groupedSections.map((section) =>
+      [
+        section.program,
+        section.yearLevel,
+        section.section,
+        section.schoolYear,
+        section.semester,
+      ].join("|")
+    )
+  );
+  const emptySectionPlans = batches
+    .filter((batch) => batch.status !== "Promoted")
+    .flatMap((batch) =>
+      (batch.sectionPlans || [])
+        .map((section) => {
+          const sectionName =
+            section.sectionName ||
+            getDefaultSectionName(batch.program, section.sectionCode);
+          const key = [
+            batch.program,
+            section.yearLevel || "",
+            sectionName,
+            batch.batchYear,
+            batch.semester || "",
+          ].join("|");
+
+          return {
+            key,
+            program: batch.program,
+            yearLevel: section.yearLevel || "",
+            section: sectionName,
+            schoolYear: batch.batchYear,
+            semester: batch.semester || "",
+            students: [],
+          };
+        })
+        .filter((section) => {
+          if (existingSectionKeys.has(section.key)) return false;
+          existingSectionKeys.add(section.key);
+          return true;
+        })
+    );
 
   localStorage.setItem("studentMasterlist", JSON.stringify(studentMasterlist));
-  localStorage.setItem("studentSections", JSON.stringify(groupedSections));
+  localStorage.setItem(
+    "studentSections",
+    JSON.stringify([...groupedSections, ...emptySectionPlans])
+  );
 };
